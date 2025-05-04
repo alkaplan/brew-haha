@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from './Header';
-import { getReviews, getTastings, getCoffees } from '../lib/data';
+import { getOrCreateUser, getStoredUserId } from '../lib/user';
+import { getCoffees, getTastingsForUser, getReviewsForUser } from '../lib/dataSupabase';
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export default function Home() {
   const [name, setName] = useState('');
@@ -12,25 +17,29 @@ export default function Home() {
     review: false
   });
   const [recommendation, setRecommendation] = useState(null);
-  const coffees = getCoffees();
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('brewHahaName') : '';
-    if (stored) {
-      setName(stored);
+    const storedId = getStoredUserId();
+    const storedName = typeof window !== 'undefined' ? localStorage.getItem('brewHahaName') : '';
+    if (storedId && storedName) {
+      setName(storedName);
       setNameSet(true);
+      fetchProgress(storedId);
+    } else {
+      setLoading(false);
     }
+  }, []);
 
-    // Check progress
-    const reviews = getReviews();
-    const tastings = getTastings();
-    const userReviews = reviews.filter(r => r.name === stored);
-    const userTastings = tastings.filter(t => t.name === stored);
-
+  async function fetchProgress(userId) {
+    setLoading(true);
+    const tastings = await getTastingsForUser(userId);
+    const reviews = await getReviewsForUser(userId);
     // Count unique coffees tasted
-    const uniqueCoffeesTasted = new Set(userTastings.map(t => t.coffee)).size;
-
-    // Check for recommendation
+    const uniqueCoffeesTasted = new Set((tastings || []).map(t => t.coffee_id)).size;
+    // Recommendation: get from localStorage for now (could be stored in user profile in future)
     let rec = null;
     if (typeof window !== 'undefined') {
       const recStr = localStorage.getItem('brewHahaRecommendation');
@@ -41,40 +50,47 @@ export default function Home() {
       }
     }
     setRecommendation(rec);
-
     setProgress({
       choose: !!rec,
-      taste: { 
+      taste: {
         count: uniqueCoffeesTasted,
         total: 5
       },
-      review: userReviews.length > 0
+      review: (reviews || []).length > 0
     });
-  }, []);
+    setLoading(false);
+  }
 
-  const handleNameSubmit = (e) => {
+  const handleNameSubmit = async (e) => {
     e.preventDefault();
     if (name.trim()) {
+      setSubmitting(true);
+      setErrorMsg('');
       localStorage.setItem('brewHahaName', name.trim());
+      let user = null;
+      let attempts = 0;
+      while (!user && attempts < 3) {
+        user = await getOrCreateUser(name.trim());
+        if (!user) {
+          await sleep(500); // wait 500ms before retry
+        }
+        attempts++;
+      }
+      setSubmitting(false);
+      if (!user) {
+        setErrorMsg('Could not create or fetch user after several tries. Please check your connection and try again.');
+        return;
+      }
       setNameSet(true);
+      fetchProgress(user.id);
     }
   };
 
-  const handleReset = () => {
-    // Clear all user-specific data
+  const handleReset = async () => {
+    // Remove user id and name from localStorage
     localStorage.removeItem('brewHahaName');
-    const reviews = getReviews();
-    const tastings = getTastings();
-    
-    // Filter out this user's reviews and tastings
-    const newReviews = reviews.filter(r => r.name !== name);
-    const newTastings = tastings.filter(t => t.name !== name);
-    
-    // Save back to localStorage
-    localStorage.setItem('reviews', JSON.stringify(newReviews));
-    localStorage.setItem('tastings', JSON.stringify(newTastings));
-    
-    // Reset state
+    localStorage.removeItem('brewHahaUserId');
+    localStorage.removeItem('brewHahaRecommendation');
     setName('');
     setNameSet(false);
     setProgress({
@@ -82,7 +98,12 @@ export default function Home() {
       taste: { count: 0, total: 5 },
       review: false
     });
+    setRecommendation(null);
   };
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
+  }
 
   if (!nameSet) {
     return (
@@ -125,7 +146,12 @@ export default function Home() {
                 required
               />
             </label>
-            <button type="submit" style={buttonStyle}>Continue</button>
+            {errorMsg && (
+              <div style={{ color: 'red', marginBottom: 16, textAlign: 'center' }}>{errorMsg}</div>
+            )}
+            <button type="submit" style={buttonStyle} disabled={submitting}>
+              {submitting ? 'Loading...' : 'Continue'}
+            </button>
           </form>
         </div>
       </>
@@ -212,8 +238,8 @@ export default function Home() {
             <button style={{
               ...buttonStyle,
               opacity: progress.choose ? 0.7 : 1,
-              cursor: progress.choose ? 'not-allowed' : 'pointer'
-            }} disabled={progress.choose}>
+              cursor: 'pointer'
+            }}>
               Choose Your Coffee
             </button>
           </Link>
@@ -221,9 +247,9 @@ export default function Home() {
           <Link href="/taste">
             <button style={{
               ...buttonStyle,
-              opacity: !progress.choose ? 0.7 : 1,
-              cursor: !progress.choose ? 'not-allowed' : 'pointer'
-            }} disabled={!progress.choose}>
+              opacity: !progress.choose ? 0.7 : (progress.taste.count === progress.taste.total ? 0.7 : 1),
+              cursor: 'pointer'
+            }}>
               Taste
             </button>
           </Link>
@@ -231,9 +257,9 @@ export default function Home() {
           <Link href="/review">
             <button style={{
               ...buttonStyle,
-              opacity: !progress.choose || progress.review ? 0.7 : 1,
-              cursor: !progress.choose || progress.review ? 'not-allowed' : 'pointer'
-            }} disabled={!progress.choose || progress.review}>
+              opacity: !progress.choose ? 0.7 : (progress.review ? 0.7 : 1),
+              cursor: 'pointer'
+            }}>
               Review
             </button>
           </Link>

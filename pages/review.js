@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Header from './Header';
-import { getCoffees } from '../lib/data';
+import { getCoffees, getTastingsForUser, getReviewsForUser, submitReview } from '../lib/dataSupabase';
+import { getStoredUserId } from '../lib/user';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -52,25 +53,34 @@ export default function Review() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  const coffees = getCoffees();
-  const [name, setName] = useState('');
-  const [tastedIds, setTastedIds] = useState([]); // checked coffee ids
+  const [coffees, setCoffees] = useState([]);
+  const [tastedCoffees, setTastedCoffees] = useState([]); // only coffees tasted by user
   const [ranked, setRanked] = useState([]); // order of right column
+  const [name, setName] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('brewHahaName') : '';
-    if (stored) setName(stored);
+    async function fetchData() {
+      setLoading(true);
+      const userId = getStoredUserId();
+      const storedName = typeof window !== 'undefined' ? localStorage.getItem('brewHahaName') : '';
+      if (storedName) setName(storedName);
+      const allCoffees = await getCoffees();
+      setCoffees(allCoffees);
+      if (userId) {
+        const tastings = await getTastingsForUser(userId);
+        const tastedIds = tastings.map(t => t.coffee_id);
+        const tasted = allCoffees.filter(c => tastedIds.includes(c.id));
+        setTastedCoffees(tasted);
+        setRanked(tasted.map(c => c.id));
+      }
+      setLoading(false);
+    }
+    fetchData();
   }, []);
-
-  // When tastedIds changes, update ranked to keep only checked coffees (preserve order)
-  useEffect(() => {
-    setRanked(prev => prev.filter(id => tastedIds.includes(id)).concat(tastedIds.filter(id => !prev.includes(id))));
-  }, [tastedIds]);
-
-  const handleCheck = (id) => {
-    setTastedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
 
   const moveCoffee = useCallback((from, to) => {
     setRanked(prev => {
@@ -81,22 +91,29 @@ export default function Review() {
     });
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (name.trim()) {
-      localStorage.setItem('brewHahaName', name.trim());
+    setErrorMsg('');
+    setSuccessMsg('');
+    const userId = getStoredUserId();
+    if (!userId) {
+      setErrorMsg('User not found. Please return to the homepage and enter your name.');
+      return;
     }
-    const entry = {
-      name: name.trim(),
-      ranked,
-      time: Date.now()
-    };
-    const prev = JSON.parse(localStorage.getItem('reviews') || '[]');
-    localStorage.setItem('reviews', JSON.stringify([...prev, entry]));
+    if (ranked.length === 0) {
+      setErrorMsg('Please rank at least one coffee.');
+      return;
+    }
+    const { error } = await submitReview({ userId, ranked });
+    if (error) {
+      setErrorMsg('Failed to submit review. Please try again.');
+      return;
+    }
+    setSuccessMsg('Review submitted!');
     setSubmitted(true);
   };
 
-  if (!mounted) return null;
+  if (!mounted || loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
 
   if (submitted) {
     return (
@@ -105,9 +122,6 @@ export default function Review() {
         <div style={{...pageStyle, paddingTop: '5rem'}}>
           <h1 style={{ color: '#6b4f1d' }}>Thank you!</h1>
           <p style={{ color: '#6b4f1d' }}>Your rankings have been submitted.</p>
-          <button style={buttonStyle} onClick={() => {
-            setTastedIds([]); setRanked([]); setSubmitted(false);
-          }}>Submit Another</button>
           <a href="/">
             <button style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d', marginTop: 16 }}>
               Return to Homepage
@@ -118,55 +132,30 @@ export default function Review() {
     );
   }
 
-  // Left: all coffees with checkboxes
-  // Right: only checked coffees, reorderable
   return (
     <DndProvider backend={HTML5Backend}>
       <Header />
       <div style={{...pageStyle, paddingTop: '5rem'}}>
         <h1 style={{ color: '#6b4f1d' }}>Rank the Coffees You Tasted</h1>
         <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <label style={labelStyle}>
-            Your Name:
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Enter your name"
-              style={inputStyle}
-              required
-            />
-          </label>
+          {/* Name is shown, not editable */}
+          <div style={{ color: '#6b4f1d', fontWeight: 'bold', marginBottom: 8 }}>Taster: {name}</div>
           <div style={{ display: 'flex', gap: 32, justifyContent: 'center' }}>
-            {/* Haven't Tasted (checkboxes) */}
-            <div style={{ flex: 1 }}>
-              <h3 style={{ color: '#6b4f1d', textAlign: 'center' }}>All Coffees</h3>
-              <div style={{ minHeight: 120, background: '#fffbe7', borderRadius: 12, padding: 8, border: '1px solid #e0cba8' }}>
-                {coffees.map((coffee) => (
-                  <label key={coffee.id} style={{ display: 'flex', alignItems: 'center', gap: 12, fontWeight: 'bold', color: '#6b4f1d', marginBottom: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={tastedIds.includes(coffee.id)}
-                      onChange={() => handleCheck(coffee.id)}
-                    />
-                    {coffee.name}
-                  </label>
-                ))}
-              </div>
-            </div>
-            {/* Have Tasted (Ranked, drag-and-drop) */}
+            {/* Ranked, drag-and-drop */}
             <div style={{ flex: 1 }}>
               <h3 style={{ color: '#6b4f1d', textAlign: 'center' }}>Ranked</h3>
               <div style={{ minHeight: 120, background: '#fffbe7', borderRadius: 12, padding: 8, border: '1px solid #e0cba8' }}>
                 {ranked.map((id, idx) => {
-                  const coffee = coffees.find(c => c.id === id);
-                  return (
+                  const coffee = tastedCoffees.find(c => c.id === id);
+                  return coffee ? (
                     <DraggableCoffee key={id} coffee={coffee} index={idx} moveCoffee={moveCoffee} />
-                  );
+                  ) : null;
                 })}
               </div>
             </div>
           </div>
+          {errorMsg && <div style={{ color: 'red', textAlign: 'center' }}>{errorMsg}</div>}
+          {successMsg && <div style={{ color: 'green', textAlign: 'center' }}>{successMsg}</div>}
           <button type="submit" style={buttonStyle} disabled={ranked.length === 0}>
             Submit Rankings
           </button>
@@ -201,20 +190,4 @@ const buttonStyle = {
   boxShadow: '0 2px 8px #0001',
   transition: 'background 0.2s',
   marginTop: 24
-};
-
-const labelStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 8,
-  fontWeight: 'bold',
-  fontSize: 18
-};
-
-const inputStyle = {
-  padding: '0.8rem',
-  border: '1px solid #6b4f1d',
-  borderRadius: '0.5rem',
-  fontSize: '1rem',
-  color: '#6b4f1d'
 };
