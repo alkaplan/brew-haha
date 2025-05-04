@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCoffees } from '../lib/dataSupabase';
+import { getCoffees, getFlavorTags } from '../lib/dataSupabase';
 import { getOrCreateUser, getStoredUserId } from '../lib/user';
 import Header from './Header';
 
@@ -50,6 +50,7 @@ export default function Choose() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showPastryPopup, setShowPastryPopup] = useState(false);
+  const [flavorTags, setFlavorTags] = useState([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -62,6 +63,8 @@ export default function Choose() {
       }
       const coffeeList = await getCoffees();
       setCoffees(coffeeList);
+      const tags = await getFlavorTags();
+      setFlavorTags(tags);
       setLoading(false);
     }
     fetchData();

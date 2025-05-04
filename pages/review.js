@@ -4,6 +4,7 @@ import { getCoffees, getTastingsForUser, getReviewsForUser, submitReview } from 
 import { getStoredUserId } from '../lib/user';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { FLAVOR_TAGS } from '../lib/constants';
 
 const ItemTypes = { COFFEE: 'COFFEE' };
 

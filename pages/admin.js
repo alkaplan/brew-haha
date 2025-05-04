@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
-import { getCoffees, updateCoffee, getAllTastings, getAllReviews, getAllUsers, deleteCoffee, deleteUserData, updateTasting, deleteTasting, updateReview, deleteReview } from '../lib/dataSupabase';
+import { getCoffees, updateCoffee, getAllTastings, getAllReviews, getAllUsers, deleteCoffee, deleteUserData, updateTasting, deleteTasting, updateReview, deleteReview, getFlavorTags, addFlavorTag, updateFlavorTag, deleteFlavorTag } from '../lib/dataSupabase';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -11,11 +11,11 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const flavorTags = [
-  'fruity', 'nutty', 'chocolate', 'floral', 'spicy', 'earthy', 'citrus', 'caramel', 'herbal', 'smoky', 'bright', 'bold'
-];
+const thStyle = { padding: 8, fontWeight: 'bold', fontSize: 16, background: '#6b4f1d', color: '#fffbe7', borderBottom: '2px solid #e0cba8' };
+const tdStyle = { padding: 8, fontSize: 15, color: '#3a2a0c', background: '#fff', borderBottom: '1px solid #e0cba8' };
 
 export default function Admin() {
   const [tab, setTab] = useState('config');
@@ -31,20 +31,26 @@ export default function Admin() {
   const [editTastingFields, setEditTastingFields] = useState({ flavor_tags: '', emoji: '', note: '' });
   const [editingReview, setEditingReview] = useState(null);
   const [editReviewFields, setEditReviewFields] = useState({ rank: '' });
+  const [flavorTags, setFlavorTags] = useState([]);
+  const [editingTag, setEditingTag] = useState(null);
+  const [editTagFields, setEditTagFields] = useState({ name: '', description: '' });
+  const [tagMsg, setTagMsg] = useState('');
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const [coffeesData, usersData, tastingsData, reviewsData] = await Promise.all([
+      const [coffeesData, usersData, tastingsData, reviewsData, tagsData] = await Promise.all([
         getCoffees(),
         getAllUsers(),
         getAllTastings(),
-        getAllReviews()
+        getAllReviews(),
+        getFlavorTags()
       ]);
       setCoffees(coffeesData);
       setUsers(usersData);
       setTastings(tastingsData);
       setReviews(reviewsData);
+      setFlavorTags(tagsData);
       setLoading(false);
     }
     fetchData();
@@ -165,6 +171,44 @@ export default function Admin() {
     }
   };
 
+  const handleEditTag = (tag) => {
+    setEditingTag(tag.id);
+    setEditTagFields({ name: tag.name, description: tag.description || '' });
+  };
+
+  const handleEditTagFieldChange = (field, value) => {
+    setEditTagFields(f => ({ ...f, [field]: value }));
+  };
+
+  const handleSaveTag = async (id) => {
+    const { error, data } = await updateFlavorTag({ id, ...editTagFields });
+    if (!error) {
+      setFlavorTags(flavorTags.map(t => t.id === id ? data : t));
+      setEditingTag(null);
+      setTagMsg('Saved!');
+      setTimeout(() => setTagMsg(''), 1200);
+    }
+  };
+
+  const handleAddTag = async () => {
+    if (!editTagFields.name.trim()) return;
+    const { error, data } = await addFlavorTag(editTagFields);
+    if (!error) {
+      setFlavorTags([...flavorTags, data]);
+      setEditTagFields({ name: '', description: '' });
+      setTagMsg('Added!');
+      setTimeout(() => setTagMsg(''), 1200);
+    }
+  };
+
+  const handleDeleteTag = async (id) => {
+    if (!window.confirm('Delete this flavor tag?')) return;
+    const { error } = await deleteFlavorTag(id);
+    if (!error) {
+      setFlavorTags(flavorTags.filter(t => t.id !== id));
+    }
+  };
+
   // Metrics
   const coffeeReviewCounts = coffees.map(c => ({
     ...c,
@@ -191,6 +235,7 @@ export default function Admin() {
           <button onClick={() => setTab('tastings')} style={tab === 'tastings' ? tabActiveStyle : tabStyle}>Tastings</button>
           <button onClick={() => setTab('reviews')} style={tab === 'reviews' ? tabActiveStyle : tabStyle}>Reviews</button>
           <button onClick={() => setTab('results')} style={tab === 'results' ? tabActiveStyle : tabStyle}>Results</button>
+          <button onClick={() => setTab('tags')} style={tab === 'tags' ? tabActiveStyle : tabStyle}>Flavor Tags</button>
         </div>
         {tab === 'config' && (
           <div>
@@ -222,11 +267,11 @@ export default function Admin() {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                           {flavorTags.map(tag => (
                             <button
-                              key={tag}
-                              onClick={() => handleTagChange(tag)}
+                              key={tag.id}
+                              onClick={() => handleTagChange(tag.name)}
                               style={{
-                                background: editFields.tags.includes(tag) ? '#6b4f1d' : '#e0cba8',
-                                color: editFields.tags.includes(tag) ? '#fffbe7' : '#6b4f1d',
+                                background: editFields.tags.includes(tag.name) ? '#6b4f1d' : '#e0cba8',
+                                color: editFields.tags.includes(tag.name) ? '#fffbe7' : '#6b4f1d',
                                 border: 'none',
                                 borderRadius: 16,
                                 padding: '0.5rem 1rem',
@@ -235,7 +280,7 @@ export default function Admin() {
                                 fontSize: '0.9rem'
                               }}
                             >
-                              {tag}
+                              {tag.name}
                             </button>
                           ))}
                         </div>
@@ -383,6 +428,49 @@ export default function Admin() {
         {tab === 'results' && (
           <div>
             <h2 style={{ color: '#6b4f1d' }}>Results</h2>
+            {/* Medal Table */}
+            {(() => {
+              const favoriteCounts = {};
+              const secondCounts = {};
+              const thirdCounts = {};
+              reviews.forEach(r => {
+                if (r.rank === 1) favoriteCounts[r.coffee_id] = (favoriteCounts[r.coffee_id] || 0) + 1;
+                if (r.rank === 2) secondCounts[r.coffee_id] = (secondCounts[r.coffee_id] || 0) + 1;
+                if (r.rank === 3) thirdCounts[r.coffee_id] = (thirdCounts[r.coffee_id] || 0) + 1;
+              });
+              const sortedByFavorites = [...coffees].sort((a, b) => (favoriteCounts[b.id] || 0) - (favoriteCounts[a.id] || 0));
+              const medals = ['🥇', '🥈', '🥉'];
+              return (
+                <div style={{ width: '100%', maxWidth: 700, background: '#fff', borderRadius: 8, padding: 16, marginBottom: 32, marginTop: 24 }}>
+                  <h3 style={{ color: '#6b4f1d', fontSize: 20, marginBottom: 16 }}>Coffee Medal Table</h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...thStyle, textAlign: 'left' }}>Coffee</th>
+                        <th style={thStyle}>#1 Votes</th>
+                        <th style={thStyle}>#2 Votes</th>
+                        <th style={thStyle}>#3 Votes</th>
+                        <th style={thStyle}>Medal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedByFavorites.map((c, idx) => {
+                        const medal = idx < 3 ? medals[idx] : '';
+                        return (
+                          <tr key={c.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
+                            <td style={tdStyle}>{c.name}</td>
+                            <td style={tdStyle}>{favoriteCounts[c.id] || 0}</td>
+                            <td style={tdStyle}>{secondCounts[c.id] || 0}</td>
+                            <td style={tdStyle}>{thirdCounts[c.id] || 0}</td>
+                            <td style={tdStyle}>{medal}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
             <h3 style={{ color: '#6b4f1d' }}>Top-Rated Coffees</h3>
             <div style={{ maxWidth: 600, margin: '0 auto 32px auto', background: '#fff', borderRadius: 8, padding: 16 }}>
               <Bar
@@ -464,13 +552,66 @@ export default function Admin() {
             }}>Export JSON</button>
           </div>
         )}
+        {tab === 'tags' && (
+          <div>
+            <h2 style={{ color: '#6b4f1d' }}>Flavor Tags</h2>
+            <table style={{ width: '100%', maxWidth: 600, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Description</th>
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {flavorTags.map((tag, idx) => (
+                  <tr key={tag.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
+                    <td style={tdStyle}>
+                      {editingTag === tag.id ? (
+                        <input value={editTagFields.name} onChange={e => handleEditTagFieldChange('name', e.target.value)} style={inputStyle} />
+                      ) : tag.name}
+                    </td>
+                    <td style={tdStyle}>
+                      {editingTag === tag.id ? (
+                        <input value={editTagFields.description} onChange={e => handleEditTagFieldChange('description', e.target.value)} style={inputStyle} />
+                      ) : tag.description}
+                    </td>
+                    <td style={tdStyle}>
+                      {editingTag === tag.id ? (
+                        <>
+                          <button onClick={() => handleSaveTag(tag.id)} style={saveBtnStyle}>Save</button>
+                          <button onClick={() => setEditingTag(null)} style={cancelBtnStyle}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleEditTag(tag)} style={editBtnStyle}>Edit</button>
+                          <button onClick={() => handleDeleteTag(tag.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c', marginLeft: 8 }}>Delete</button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td style={tdStyle}>
+                    <input value={editTagFields.name} onChange={e => handleEditTagFieldChange('name', e.target.value)} style={inputStyle} placeholder="New tag name" />
+                  </td>
+                  <td style={tdStyle}>
+                    <input value={editTagFields.description} onChange={e => handleEditTagFieldChange('description', e.target.value)} style={inputStyle} placeholder="Description (optional)" />
+                  </td>
+                  <td style={tdStyle}>
+                    <button onClick={handleAddTag} style={saveBtnStyle}>Add</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            {tagMsg && <div style={{ color: 'green', textAlign: 'center', marginTop: 16 }}>{tagMsg}</div>}
+          </div>
+        )}
       </div>
     </>
   );
 }
 
-const thStyle = { padding: 8, fontWeight: 'bold', fontSize: 16, background: '#6b4f1d', color: '#fffbe7', borderBottom: '2px solid #e0cba8' };
-const tdStyle = { padding: 8, fontSize: 15, color: '#3a2a0c', background: '#fff', borderBottom: '1px solid #e0cba8' };
 const inputStyle = { padding: 6, fontSize: 15, borderRadius: 4, border: '1px solid #e0cba8', width: '100%' };
 const tabStyle = { background: '#e0cba8', color: '#6b4f1d', border: 'none', borderRadius: 8, padding: '0.7rem 1.5rem', fontWeight: 'bold', cursor: 'pointer' };
 const tabActiveStyle = { ...tabStyle, background: '#6b4f1d', color: '#fffbe7' };

@@ -1,18 +1,15 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
-import { getCoffees, upsertTasting, getTastingsForUser } from '../lib/dataSupabase';
+import { getCoffees, upsertTasting, getTastingsForUser, getFlavorTags } from '../lib/dataSupabase';
 import { getStoredUserId } from '../lib/user';
-
-const flavorTags = [
-  'fruity', 'nutty', 'chocolate', 'floral', 'spicy', 'earthy', 'citrus', 'caramel', 'herbal', 'smoky', 'bright', 'bold'
-];
 
 const emojiOptions = ['😋', '😍', '🤔', '😐', '😶', '🤢'];
 
 export default function Taste() {
   const [coffees, setCoffees] = useState([]);
   const [selectedCoffee, setSelectedCoffee] = useState('');
-  const [flavorTags, setFlavorTags] = useState([]);
+  const [allFlavorTags, setAllFlavorTags] = useState([]);
+  const [selectedFlavorTags, setSelectedFlavorTags] = useState([]);
   const [emoji, setEmoji] = useState('');
   const [note, setNote] = useState('');
   const [name, setName] = useState('');
@@ -34,6 +31,8 @@ export default function Taste() {
         const tastings = await getTastingsForUser(userId);
         setUserTastings(tastings);
       }
+      const tags = await getFlavorTags();
+      setAllFlavorTags(tags);
       setLoading(false);
     }
     fetchData();
@@ -42,18 +41,18 @@ export default function Taste() {
   // Populate form fields if coffee already tasted
   useEffect(() => {
     if (!selectedCoffee) {
-      setFlavorTags([]);
+      setSelectedFlavorTags([]);
       setEmoji('');
       setNote('');
       return;
     }
     const prev = userTastings.find(t => t.coffee_id === selectedCoffee);
     if (prev) {
-      setFlavorTags(prev.flavor_tags || []);
+      setSelectedFlavorTags(prev.flavor_tags || []);
       setEmoji(prev.emoji || '');
       setNote(prev.note || '');
     } else {
-      setFlavorTags([]);
+      setSelectedFlavorTags([]);
       setEmoji('');
       setNote('');
     }
@@ -79,7 +78,7 @@ export default function Taste() {
     const { error } = await upsertTasting({
       userId,
       coffeeId: selectedCoffee,
-      flavor_tags: flavorTags,
+      flavor_tags: selectedFlavorTags,
       emoji,
       note
     });
@@ -93,7 +92,7 @@ export default function Taste() {
     const updatedTastings = await getTastingsForUser(userId);
     setUserTastings(updatedTastings);
     setSelectedCoffee('');
-    setFlavorTags([]);
+    setSelectedFlavorTags([]);
     setEmoji('');
     setNote('');
   };
@@ -139,14 +138,14 @@ export default function Taste() {
           <label style={{ color: '#6b4f1d', fontWeight: 'bold' }}>
             Flavor Tags (pick up to 3):
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {['fruity','bright','adventurous','chocolate','smooth','classic','nutty','balanced','mellow','bold','intense','strong','floral','delicate','gentle'].map(tag => (
+              {allFlavorTags.map(tag => (
                 <button
                   type="button"
-                  key={tag}
-                  onClick={() => setFlavorTags(f => f.includes(tag) ? f.filter(t => t !== tag) : f.length < 3 ? [...f, tag] : f)}
+                  key={tag.name}
+                  onClick={() => setSelectedFlavorTags(f => f.includes(tag.name) ? f.filter(t => t !== tag.name) : f.length < 3 ? [...f, tag.name] : f)}
                   style={{
-                    background: flavorTags.includes(tag) ? '#6b4f1d' : '#e0cba8',
-                    color: flavorTags.includes(tag) ? '#fffbe7' : '#6b4f1d',
+                    background: selectedFlavorTags.includes(tag.name) ? '#6b4f1d' : '#e0cba8',
+                    color: selectedFlavorTags.includes(tag.name) ? '#fffbe7' : '#6b4f1d',
                     border: 'none',
                     borderRadius: 16,
                     padding: '0.5rem 1rem',
@@ -154,9 +153,9 @@ export default function Taste() {
                     fontWeight: 'bold',
                     fontSize: '1rem'
                   }}
-                  disabled={!flavorTags.includes(tag) && flavorTags.length >= 3}
+                  disabled={!selectedFlavorTags.includes(tag.name) && selectedFlavorTags.length >= 3}
                 >
-                  {tag}
+                  {tag.name}
                 </button>
               ))}
             </div>
