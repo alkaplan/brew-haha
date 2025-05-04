@@ -72,6 +72,11 @@ export default function Home() {
       while (!user && attempts < 3) {
         user = await getOrCreateUser(name.trim());
         if (!user) {
+          if (attempts === 0) {
+            setErrorMsg('This name is already taken. Please choose another one.');
+            setSubmitting(false);
+            return;
+          }
           await sleep(500); // wait 500ms before retry
         }
         attempts++;
@@ -263,25 +268,14 @@ export default function Home() {
               Review
             </button>
           </Link>
+          {progress.review && (
+            <Link href="/results">
+              <button style={buttonStyle}>
+                View Results
+              </button>
+            </Link>
+          )}
         </div>
-        <Link href="/admin">
-          <button style={{
-            position: 'fixed',
-            bottom: 20,
-            right: 20,
-            background: '#e0cba8',
-            color: '#6b4f1d',
-            border: 'none',
-            borderRadius: '50%',
-            width: 44,
-            height: 44,
-            fontSize: 18,
-            boxShadow: '0 2px 8px #0001',
-            cursor: 'pointer'
-          }}>
-            🔑
-          </button>
-        </Link>
       </div>
     </>
   );

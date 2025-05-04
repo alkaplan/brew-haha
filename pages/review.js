@@ -111,6 +111,10 @@ export default function Review() {
     }
     setSuccessMsg('Review submitted!');
     setSubmitted(true);
+    // Redirect to results page after a short delay
+    setTimeout(() => {
+      window.location.href = '/results';
+    }, 1500);
   };
 
   if (!mounted || loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
@@ -122,11 +126,16 @@ export default function Review() {
         <div style={{...pageStyle, paddingTop: '5rem'}}>
           <h1 style={{ color: '#6b4f1d' }}>Thank you!</h1>
           <p style={{ color: '#6b4f1d' }}>Your rankings have been submitted.</p>
-          <a href="/">
-            <button style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d', marginTop: 16 }}>
-              Return to Homepage
-            </button>
-          </a>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 320 }}>
+            <a href="/results">
+              <button style={buttonStyle}>View Results</button>
+            </a>
+            <a href="/">
+              <button style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d' }}>
+                Return to Homepage
+              </button>
+            </a>
+          </div>
         </div>
       </>
     );
