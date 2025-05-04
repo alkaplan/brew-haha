@@ -1,40 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# BrewHaha: Coffee Tasting Web App
+
+BrewHaha is an interactive web application designed for coffee tasting events, allowing users to taste, rate, and compare different coffee varieties while learning about flavor profiles.
+
+## Features
+
+- **User-friendly Coffee Tasting Flow**:
+  - Simple user registration and onboarding
+  - Guided tasting process with flavor tag selection
+  - Coffee ranking and review system
+  - Comprehensive results visualization
+
+- **Interactive Results Page**:
+  - Detailed tasting notes comparison between user selections and official tags
+  - Medal table showing top-rated coffees with weighted scoring
+  - Visual flavor analysis with charts and comparisons
+  - Personal ranking highlights
+
+- **Admin Dashboard**:
+  - Coffee configuration and management
+  - User data management
+  - Flavor tag administration with CRUD operations
+  - Detailed analytics and results reporting
+  - Data export functionality
+
+## Technology Stack
+
+- **Frontend**: Next.js with React
+- **Backend**: Supabase (PostgreSQL + REST API)
+- **Authentication**: Supabase Auth
+- **Styling**: Custom CSS with inline styling
+- **Visualization**: Chart.js for data visualization
+- **Deployment**: Vercel/Netlify (recommended)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js (v14 or later)
+- Supabase account and project
+
+### Setup
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd brew-haha
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Create a `.env.local` file in the root directory with your Supabase credentials:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+4. Run the development server:
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open [http://localhost:3000](http://localhost:3000) to view the application
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+## Database Schema
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+The application requires the following tables in Supabase:
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+- `coffees` - Coffee information and official flavor tags
+- `users` - User registration data
+- `tastings` - User tasting notes for each coffee
+- `reviews` - User rankings for coffees
+- `flavor_tags` - Database of available flavor tags
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Key Pages
 
-## Learn More
+- `/` - Welcome and registration page
+- `/choose` - Coffee selection page
+- `/taste` - Tasting form with flavor tag selection
+- `/review` - Final review and ranking page
+- `/results` - Comprehensive results visualization
+- `/admin` - Admin dashboard for data management
 
-To learn more about Next.js, take a look at the following resources:
+## License
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+[MIT](LICENSE)
