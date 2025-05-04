@@ -1,326 +1,276 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
-import { getReviews, getTastings, getCoffees } from '../lib/data';
-import { useRouter } from 'next/router';
-
-const ADMIN_PASSWORD = 'shkelzen';
-
-const defaultCoffees = [
-  { id: 'A', name: 'Coffee A', description: 'Bright and fruity, perfect for adventurous palates.', tags: ['fruity', 'bright', 'adventurous'] },
-  { id: 'B', name: 'Coffee B', description: 'Smooth and chocolatey, a crowd-pleaser.', tags: ['chocolate', 'smooth', 'classic'] },
-  { id: 'C', name: 'Coffee C', description: 'Nutty and balanced, for those who like harmony.', tags: ['nutty', 'balanced', 'mellow'] },
-  { id: 'D', name: 'Coffee D', description: 'Bold and intense, for the strong-hearted.', tags: ['bold', 'intense', 'strong'] },
-  { id: 'E', name: 'Coffee E', description: 'Floral and delicate, a gentle experience.', tags: ['floral', 'delicate', 'gentle'] }
-];
-
-function aggregateResults(coffees, reviews, tastings) {
-  return coffees.map(coffee => {
-    // Count how many times this coffee appears in each position
-    const positionCounts = {};
-    reviews.forEach(review => {
-      const position = review.ranked.indexOf(coffee.id);
-      if (position !== -1) {
-        positionCounts[position] = (positionCounts[position] || 0) + 1;
-      }
-    });
-
-    // Get top 3 flavors from tastings
-    const coffeeTastings = tastings.filter(t => t.coffee === coffee.id);
-    const flavorCounts = {};
-    coffeeTastings.forEach(t => {
-      (t.flavors || []).forEach(f => {
-        flavorCounts[f] = (flavorCounts[f] || 0) + 1;
-      });
-    });
-    const topFlavors = Object.entries(flavorCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([f]) => f);
-
-    return {
-      ...coffee,
-      positionCounts,
-      topFlavors
-    };
-  });
-}
-
-function exportData(type, coffees, reviews, tastings) {
-  if (type === 'json') {
-    const data = { coffees, reviews, tastings };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'brew-haha-data.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  } else if (type === 'csv') {
-    let csv = 'Type,Time,Name,Coffee,Flavors,Emoji,Note,Rankings\n';
-    tastings.forEach(t => {
-      csv += `Tasting,${new Date(t.time).toISOString()},${t.name||''},${t.coffee},${(t.flavors||[]).join(';')},${t.emoji||''},"${t.note||''}",\n`;
-    });
-    reviews.forEach(r => {
-      const rankings = r.ranked.map((id, idx) => {
-        const coffee = coffees.find(c => c.id === id);
-        return `${idx + 1}. ${coffee?.name || id}`;
-      }).join(';');
-      csv += `Review,${new Date(r.time).toISOString()},${r.name||''},,,,'',"${rankings}"\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'brew-haha-data.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-}
+import { getCoffees, updateCoffee, getAllTastings, getAllReviews, getAllUsers, deleteCoffee, deleteUser } from '../lib/dataSupabase';
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function Admin() {
-  const router = useRouter();
-  const [input, setInput] = useState('');
-  const [authed, setAuthed] = useState(false);
-  const [error, setError] = useState('');
   const [tab, setTab] = useState('config');
-  const [coffees, setCoffees] = useState(defaultCoffees);
-  const [saved, setSaved] = useState(false);
-  const [results, setResults] = useState([]);
-  const [reviews, setReviews] = useState([]);
+  const [coffees, setCoffees] = useState([]);
+  const [users, setUsers] = useState([]);
   const [tastings, setTastings] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [editingCoffee, setEditingCoffee] = useState(null);
+  const [editFields, setEditFields] = useState({ name: '', description: '', tags: '' });
+  const [loading, setLoading] = useState(true);
+  const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('adminCoffees');
-    if (stored) setCoffees(JSON.parse(stored));
+    async function fetchData() {
+      setLoading(true);
+      const [coffeesData, usersData, tastingsData, reviewsData] = await Promise.all([
+        getCoffees(),
+        getAllUsers(),
+        getAllTastings(),
+        getAllReviews()
+      ]);
+      setCoffees(coffeesData);
+      setUsers(usersData);
+      setTastings(tastingsData);
+      setReviews(reviewsData);
+      setLoading(false);
+    }
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    if (tab === 'results') {
-      const coffeesNow = getCoffees();
-      const reviewsNow = getReviews();
-      const tastingsNow = getTastings();
-      setReviews(reviewsNow);
-      setTastings(tastingsNow);
-      setResults(aggregateResults(coffeesNow, reviewsNow, tastingsNow));
-    }
-  }, [tab]);
-
-  useEffect(() => {
-    const isAuthed = localStorage.getItem('adminAuthed') === 'true';
-    setAuthed(isAuthed);
-  }, []);
-
-  const handleCoffeeChange = (idx, field, value) => {
-    setCoffees(cs => cs.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+  const handleEditCoffee = (coffee) => {
+    setEditingCoffee(coffee.id);
+    setEditFields({
+      name: coffee.name,
+      description: coffee.description,
+      tags: (coffee.tags || []).join(', ')
+    });
   };
 
-  const handleTagChange = (idx, value) => {
-    setCoffees(cs => cs.map((c, i) => i === idx ? { ...c, tags: value.split(',').map(t => t.trim()).filter(Boolean) } : c));
+  const handleEditFieldChange = (field, value) => {
+    setEditFields(f => ({ ...f, [field]: value }));
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    localStorage.setItem('adminCoffees', JSON.stringify(coffees));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (input === ADMIN_PASSWORD) {
-      setAuthed(true);
-      setError('');
-      localStorage.setItem('adminAuthed', 'true');
-    } else {
-      setError('Incorrect password.');
+  const handleSaveCoffee = async (id) => {
+    const tagsArr = editFields.tags.split(',').map(t => t.trim()).filter(Boolean);
+    const { error } = await updateCoffee({
+      id,
+      name: editFields.name,
+      description: editFields.description,
+      tags: tagsArr
+    });
+    if (!error) {
+      setCoffees(coffees.map(c => c.id === id ? { ...c, ...editFields, tags: tagsArr } : c));
+      setEditingCoffee(null);
+      setSaveMsg('Saved!');
+      setTimeout(() => setSaveMsg(''), 1200);
     }
   };
 
-  const handleLogout = () => {
-    setAuthed(false);
-    localStorage.removeItem('adminAuthed');
-    router.push('/');
+  const handleDeleteCoffee = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this coffee?')) return;
+    const { error } = await deleteCoffee(id);
+    if (!error) {
+      setCoffees(coffees.filter(c => c.id !== id));
+    }
   };
 
-  if (!authed) {
-    return (
-      <>
-        <Header />
-        <div style={{...pageStyle, paddingTop: '5rem'}}>
-          <h1 style={{ color: '#6b4f1d' }}>Admin Login</h1>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 260, alignItems: 'center' }}>
-            <input
-              type="password"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Enter password"
-              style={{
-                padding: '0.8rem',
-                borderRadius: 12,
-                border: '1px solid #e0cba8',
-                fontSize: '1.1rem',
-                fontFamily: 'inherit',
-                background: '#fffbe7',
-                color: '#6b4f1d',
-                width: '100%'
-              }}
-            />
-            <button type="submit" style={buttonStyle}>Login</button>
-            {error && <div style={{ color: 'crimson', fontWeight: 'bold' }}>{error}</div>}
-          </form>
-        </div>
-      </>
-    );
-  }
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    const { error } = await deleteUser(id);
+    if (!error) {
+      setUsers(users.filter(u => u.id !== id));
+    }
+  };
+
+  // Metrics
+  const coffeeReviewCounts = coffees.map(c => ({
+    ...c,
+    reviewCount: reviews.filter(r => r.coffee_id === c.id).length,
+    avgRank: (() => {
+      const ranks = reviews.filter(r => r.coffee_id === c.id).map(r => r.rank);
+      return ranks.length ? (ranks.reduce((a, b) => a + b, 0) / ranks.length).toFixed(2) : '-';
+    })()
+  }));
+  const flavorCounts = {};
+  tastings.forEach(t => (t.flavor_tags || []).forEach(tag => { flavorCounts[tag] = (flavorCounts[tag] || 0) + 1; }));
+  const topFlavors = Object.entries(flavorCounts).sort((a, b) => b[1] - a[1]);
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
 
   return (
     <>
       <Header />
-      <div style={{...pageStyle, paddingTop: '5rem'}}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ color: '#6b4f1d' }}>Admin Dashboard</h1>
-          <button onClick={handleLogout} style={{...buttonStyle, width: 'auto', background: '#e0cba8', color: '#6b4f1d'}}>
-            Logout
-          </button>
-        </div>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-          <button
-            style={{ ...tabButtonStyle, background: tab === 'config' ? '#6b4f1d' : '#e0cba8', color: tab === 'config' ? '#fffbe7' : '#6b4f1d' }}
-            onClick={() => setTab('config')}
-          >
-            Config
-          </button>
-          <button
-            style={{ ...tabButtonStyle, background: tab === 'results' ? '#6b4f1d' : '#e0cba8', color: tab === 'results' ? '#fffbe7' : '#6b4f1d' }}
-            onClick={() => setTab('results')}
-          >
-            Results
-          </button>
+      <div style={{ minHeight: '100vh', background: '#fffbe7', padding: '2rem', paddingTop: '5rem', fontFamily: 'sans-serif' }}>
+        <h1 style={{ color: '#6b4f1d', marginBottom: 24 }}>Admin</h1>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
+          <button onClick={() => setTab('config')} style={tab === 'config' ? tabActiveStyle : tabStyle}>Coffee Config</button>
+          <button onClick={() => setTab('users')} style={tab === 'users' ? tabActiveStyle : tabStyle}>Users</button>
+          <button onClick={() => setTab('results')} style={tab === 'results' ? tabActiveStyle : tabStyle}>Results</button>
         </div>
         {tab === 'config' && (
-          <form onSubmit={handleSave} style={{ width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {coffees.map((c, idx) => (
-              <div key={c.id} style={{ background: '#e0cba8', borderRadius: 16, padding: '1rem', color: '#6b4f1d', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontWeight: 'bold', fontSize: 18 }}>{c.id}</div>
-                <label style={labelStyle}>
-                  Name:
-                  <input
-                    type="text"
-                    value={c.name}
-                    onChange={e => handleCoffeeChange(idx, 'name', e.target.value)}
-                    style={inputStyle}
-                  />
-                </label>
-                <label style={labelStyle}>
-                  Description:
-                  <input
-                    type="text"
-                    value={c.description}
-                    onChange={e => handleCoffeeChange(idx, 'description', e.target.value)}
-                    style={inputStyle}
-                  />
-                </label>
-                <label style={labelStyle}>
-                  Vibe tags (comma separated):
-                  <input
-                    type="text"
-                    value={c.tags.join(', ')}
-                    onChange={e => handleTagChange(idx, e.target.value)}
-                    style={inputStyle}
-                  />
-                </label>
-              </div>
-            ))}
-            <button type="submit" style={buttonStyle}>Save Changes</button>
-            {saved && <div style={{ color: 'green', fontWeight: 'bold', textAlign: 'center' }}>Saved!</div>}
-          </form>
+          <div>
+            <h2 style={{ color: '#6b4f1d' }}>Coffees</h2>
+            <table style={{ width: '100%', maxWidth: 800, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
+              <thead>
+                <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
+                  <th style={thStyle}>ID</th>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Description</th>
+                  <th style={thStyle}>Tags</th>
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {coffees.map((c, idx) => (
+                  <tr key={c.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
+                    <td style={tdStyle}>{c.id}</td>
+                    <td style={tdStyle}>
+                      {editingCoffee === c.id ? (
+                        <input value={editFields.name} onChange={e => handleEditFieldChange('name', e.target.value)} style={inputStyle} />
+                      ) : c.name}
+                    </td>
+                    <td style={tdStyle}>
+                      {editingCoffee === c.id ? (
+                        <input value={editFields.description} onChange={e => handleEditFieldChange('description', e.target.value)} style={inputStyle} />
+                      ) : c.description}
+                    </td>
+                    <td style={tdStyle}>
+                      {editingCoffee === c.id ? (
+                        <input value={editFields.tags} onChange={e => handleEditFieldChange('tags', e.target.value)} style={inputStyle} />
+                      ) : (c.tags || []).join(', ')}
+                    </td>
+                    <td style={tdStyle}>
+                      {editingCoffee === c.id ? (
+                        <>
+                          <button onClick={() => handleSaveCoffee(c.id)} style={saveBtnStyle}>Save</button>
+                          <button onClick={() => setEditingCoffee(null)} style={cancelBtnStyle}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleEditCoffee(c)} style={editBtnStyle}>Edit</button>
+                          <button onClick={() => handleDeleteCoffee(c.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c', marginLeft: 8 }}>Delete</button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {saveMsg && <div style={{ color: 'green', marginBottom: 16 }}>{saveMsg}</div>}
+          </div>
+        )}
+        {tab === 'users' && (
+          <div>
+            <h2 style={{ color: '#6b4f1d' }}>Users</h2>
+            <table style={{ width: '100%', maxWidth: 600, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
+              <thead>
+                <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Created At</th>
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u, idx) => (
+                  <tr key={u.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
+                    <td style={tdStyle}>{u.name}</td>
+                    <td style={tdStyle}>{u.created_at ? new Date(u.created_at).toLocaleString() : ''}</td>
+                    <td style={tdStyle}>
+                      <button onClick={() => handleDeleteUser(u.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c' }}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {tab === 'results' && (
           <div>
             <h2 style={{ color: '#6b4f1d' }}>Results</h2>
-            <div style={{ marginBottom: 16 }}>
-              <button style={{ ...buttonStyle, width: 'auto', marginRight: 8 }} onClick={() => exportData('json', coffees, reviews, tastings)}>Export JSON</button>
-              <button style={{ ...buttonStyle, width: 'auto' }} onClick={() => exportData('csv', coffees, reviews, tastings)}>Export CSV</button>
+            <h3 style={{ color: '#6b4f1d' }}>Top-Rated Coffees</h3>
+            <div style={{ maxWidth: 600, margin: '0 auto 32px auto', background: '#fff', borderRadius: 8, padding: 16 }}>
+              <Bar
+                data={{
+                  labels: coffeeReviewCounts.map(c => c.name),
+                  datasets: [
+                    {
+                      label: '# Reviews',
+                      data: coffeeReviewCounts.map(c => c.reviewCount),
+                      backgroundColor: '#6b4f1d',
+                    }
+                  ]
+                }}
+                options={{
+                  responsive: true,
+                  plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                  },
+                  scales: {
+                    x: { ticks: { color: '#6b4f1d', font: { weight: 'bold' } } },
+                    y: { beginAtZero: true, ticks: { color: '#6b4f1d' } }
+                  }
+                }}
+              />
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: 400 }}>
-                <thead>
-                  <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
-                    <th style={thStyle}>Coffee</th>
-                    <th style={thStyle}>1st Place</th>
-                    <th style={thStyle}>2nd Place</th>
-                    <th style={thStyle}>3rd Place</th>
-                    <th style={thStyle}>Top Flavors</th>
+            <h3 style={{ color: '#6b4f1d' }}>Most Selected Flavors</h3>
+            <div style={{ maxWidth: 600, margin: '0 auto 32px auto', background: '#fff', borderRadius: 8, padding: 16 }}>
+              <Bar
+                data={{
+                  labels: topFlavors.map(([tag]) => tag),
+                  datasets: [
+                    {
+                      label: 'Count',
+                      data: topFlavors.map(([_, count]) => count),
+                      backgroundColor: '#b91c1c',
+                    }
+                  ]
+                }}
+                options={{
+                  responsive: true,
+                  plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                  },
+                  scales: {
+                    x: { ticks: { color: '#6b4f1d', font: { weight: 'bold' } } },
+                    y: { beginAtZero: true, ticks: { color: '#6b4f1d' } }
+                  }
+                }}
+              />
+            </div>
+            <table style={{ width: '100%', maxWidth: 600, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
+              <thead>
+                <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}># Reviews</th>
+                  <th style={thStyle}>Avg. Rank</th>
+                </tr>
+              </thead>
+              <tbody>
+                {coffeeReviewCounts.map((c, idx) => (
+                  <tr key={c.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
+                    <td style={tdStyle}>{c.name}</td>
+                    <td style={tdStyle}>{c.reviewCount}</td>
+                    <td style={tdStyle}>{c.avgRank}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {results.map(r => (
-                    <tr key={r.id} style={{ background: '#fffbe7', color: '#6b4f1d', borderBottom: '1px solid #e0cba8' }}>
-                      <td style={tdStyle}>{r.name}</td>
-                      <td style={tdStyle}>{r.positionCounts[0] || 0}</td>
-                      <td style={tdStyle}>{r.positionCounts[1] || 0}</td>
-                      <td style={tdStyle}>{r.positionCounts[2] || 0}</td>
-                      <td style={tdStyle}>{r.topFlavors.join(', ')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* List all tastings */}
-            <h3 style={{ color: '#6b4f1d', marginTop: 32 }}>All Tastings</h3>
-            <div style={{ overflowX: 'auto', marginBottom: 24 }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: 400 }}>
-                <thead>
-                  <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
-                    <th style={thStyle}>Name</th>
-                    <th style={thStyle}>Coffee</th>
-                    <th style={thStyle}>Flavors</th>
-                    <th style={thStyle}>Emoji</th>
-                    <th style={thStyle}>Note</th>
-                    <th style={thStyle}>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tastings.map((t, i) => (
-                    <tr key={i} style={{ background: '#fffbe7', color: '#6b4f1d', borderBottom: '1px solid #e0cba8' }}>
-                      <td style={tdStyle}>{t.name || ''}</td>
-                      <td style={tdStyle}>{t.coffee}</td>
-                      <td style={tdStyle}>{(t.flavors||[]).join(', ')}</td>
-                      <td style={tdStyle}>{t.emoji}</td>
-                      <td style={tdStyle}>{t.note}</td>
-                      <td style={tdStyle}>{t.time ? new Date(t.time).toLocaleString() : ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* List all reviews */}
-            <h3 style={{ color: '#6b4f1d', marginTop: 32 }}>All Reviews</h3>
-            <div style={{ overflowX: 'auto', marginBottom: 24 }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: 400 }}>
-                <thead>
-                  <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
-                    <th style={thStyle}>Name</th>
-                    <th style={thStyle}>Rankings</th>
-                    <th style={thStyle}>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reviews.map((r, i) => (
-                    <tr key={i} style={{ background: '#fffbe7', color: '#6b4f1d', borderBottom: '1px solid #e0cba8' }}>
-                      <td style={tdStyle}>{r.name || ''}</td>
-                      <td style={tdStyle}>
-                        {r.ranked.map((id, idx) => {
-                          const coffee = coffees.find(c => c.id === id);
-                          return `${idx + 1}. ${coffee?.name || id}`;
-                        }).join(', ')}
-                      </td>
-                      <td style={tdStyle}>{r.time ? new Date(r.time).toLocaleString() : ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
+            <button style={exportBtnStyle} onClick={() => {
+              const data = { coffees, users, tastings, reviews };
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'brewhaha-data.json';
+              a.click();
+            }}>Export JSON</button>
           </div>
         )}
       </div>
@@ -328,72 +278,12 @@ export default function Admin() {
   );
 }
 
-const pageStyle = {
-  minHeight: '100vh',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  fontFamily: 'sans-serif',
-  background: '#fffbe7',
-  padding: '2rem'
-};
-
-const buttonStyle = {
-  width: '100%',
-  padding: '1.2rem',
-  fontSize: '1.2rem',
-  background: '#6b4f1d',
-  color: '#fffbe7',
-  border: 'none',
-  borderRadius: '1.5rem',
-  fontWeight: 'bold',
-  letterSpacing: '0.02em',
-  cursor: 'pointer',
-  boxShadow: '0 2px 8px #0001',
-  transition: 'background 0.2s',
-  marginTop: 24
-};
-
-const tabButtonStyle = {
-  padding: '0.7rem 1.5rem',
-  border: 'none',
-  borderRadius: 12,
-  fontWeight: 'bold',
-  fontSize: '1.1rem',
-  cursor: 'pointer',
-  boxShadow: '0 2px 8px #0001',
-  transition: 'background 0.2s',
-};
-
-const labelStyle = {
-  color: '#6b4f1d',
-  fontWeight: 'bold',
-  marginBottom: 8,
-  display: 'block'
-};
-
-const inputStyle = {
-  width: '100%',
-  padding: '0.7rem',
-  borderRadius: 12,
-  border: '1px solid #e0cba8',
-  marginTop: 8,
-  fontSize: '1rem',
-  fontFamily: 'inherit',
-  background: '#fffbe7',
-  color: '#6b4f1d'
-};
-
-const thStyle = {
-  padding: '0.75rem',
-  textAlign: 'left',
-  fontWeight: 'bold',
-  color: '#6b4f1d'
-};
-
-const tdStyle = {
-  padding: '0.75rem',
-  textAlign: 'left',
-  color: '#6b4f1d'
-}; 
+const thStyle = { padding: 8, fontWeight: 'bold', fontSize: 16, background: '#6b4f1d', color: '#fffbe7', borderBottom: '2px solid #e0cba8' };
+const tdStyle = { padding: 8, fontSize: 15, color: '#3a2a0c', background: '#fff', borderBottom: '1px solid #e0cba8' };
+const inputStyle = { padding: 6, fontSize: 15, borderRadius: 4, border: '1px solid #e0cba8', width: '100%' };
+const tabStyle = { background: '#e0cba8', color: '#6b4f1d', border: 'none', borderRadius: 8, padding: '0.7rem 1.5rem', fontWeight: 'bold', cursor: 'pointer' };
+const tabActiveStyle = { ...tabStyle, background: '#6b4f1d', color: '#fffbe7' };
+const editBtnStyle = { background: '#e0cba8', color: '#6b4f1d', border: 'none', borderRadius: 4, padding: '0.4rem 1rem', fontWeight: 'bold', cursor: 'pointer' };
+const saveBtnStyle = { background: '#6b4f1d', color: '#fffbe7', border: 'none', borderRadius: 4, padding: '0.4rem 1rem', fontWeight: 'bold', cursor: 'pointer', marginRight: 8 };
+const cancelBtnStyle = { background: '#fffbe7', color: '#6b4f1d', border: '1px solid #e0cba8', borderRadius: 4, padding: '0.4rem 1rem', fontWeight: 'bold', cursor: 'pointer' };
+const exportBtnStyle = { background: '#6b4f1d', color: '#fffbe7', border: 'none', borderRadius: 8, padding: '0.8rem 2rem', fontWeight: 'bold', fontSize: 16, marginTop: 24, cursor: 'pointer' }; 
