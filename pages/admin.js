@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
-import { getCoffees, updateCoffee, getAllTastings, getAllReviews, getAllUsers, deleteCoffee, deleteUserData, updateTasting, deleteTasting, updateReview, deleteReview, getFlavorTags, addFlavorTag, updateFlavorTag, deleteFlavorTag } from '../lib/dataSupabase';
+import { getCoffees, updateCoffee, getAllTastings, getAllReviews, getAllUsers, deleteCoffee, deleteUserData, updateTasting, deleteTasting, updateReview, deleteReview, getFlavorTags, addFlavorTag, updateFlavorTag, deleteFlavorTag, getPastries, addPastry, updatePastry, deletePastry, getAllPastryFeedback } from '../lib/dataSupabase';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -38,24 +38,33 @@ export default function Admin() {
   const [passwordEntered, setPasswordEntered] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+  const [pastries, setPastries] = useState([]);
+  const [pastryFeedback, setPastryFeedback] = useState([]);
+  const [editingPastry, setEditingPastry] = useState(null);
+  const [editPastryFields, setEditPastryFields] = useState({ name: '', description: '', image: '' });
+  const [pastryMsg, setPastryMsg] = useState('');
 
   useEffect(() => {
     if (!passwordEntered) return;
     
     async function fetchData() {
       setLoading(true);
-      const [coffeesData, usersData, tastingsData, reviewsData, tagsData] = await Promise.all([
+      const [coffeesData, usersData, tastingsData, reviewsData, tagsData, pastriesData, pastryFeedbackData] = await Promise.all([
         getCoffees(),
         getAllUsers(),
         getAllTastings(),
         getAllReviews(),
-        getFlavorTags()
+        getFlavorTags(),
+        getPastries(),
+        getAllPastryFeedback()
       ]);
       setCoffees(coffeesData);
       setUsers(usersData);
       setTastings(tastingsData);
       setReviews(reviewsData);
       setFlavorTags(tagsData);
+      setPastries(pastriesData);
+      setPastryFeedback(pastryFeedbackData);
       setLoading(false);
     }
     fetchData();
@@ -63,7 +72,7 @@ export default function Admin() {
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
-    if (password === 'brewhaha') {
+    if (password === 'shkelzen') {
       setPasswordEntered(true);
       setPasswordError(false);
     } else {
@@ -76,46 +85,60 @@ export default function Admin() {
       <>
         <Header />
         <div style={{ minHeight: '100vh', background: '#fffbe7', padding: '2rem', paddingTop: '5rem', fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <h1 style={{ color: '#6b4f1d', marginBottom: 24 }}>Admin Access</h1>
-          <form onSubmit={handlePasswordSubmit} style={{ width: '100%', maxWidth: 400 }}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 8, color: '#6b4f1d', fontWeight: 'bold' }}>
-                Password:
-              </label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)}
-                style={{ 
+          <div style={{ 
+            maxWidth: 480, 
+            background: '#fff', 
+            borderRadius: 16, 
+            padding: 32, 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            width: '100%'
+          }}>
+            <h1 style={{ color: '#6b4f1d', marginBottom: 24, textAlign: 'center' }}>Admin Access</h1>
+            <form onSubmit={handlePasswordSubmit} style={{ width: '100%' }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 8, color: '#6b4f1d', fontWeight: 'bold' }}>
+                  Password:
+                </label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '1rem', 
+                    borderRadius: 8, 
+                    border: passwordError ? '2px solid #b91c1c' : '1px solid #e0cba8',
+                    background: '#fffbe7',
+                    color: '#000',
+                    fontSize: '1rem',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                  }}
+                />
+                {passwordError && (
+                  <p style={{ color: '#b91c1c', marginTop: 8, fontSize: 14 }}>Incorrect password</p>
+                )}
+              </div>
+              <button 
+                type="submit" 
+                style={{
                   width: '100%', 
-                  padding: '0.8rem', 
+                  padding: '1rem', 
+                  background: '#6b4f1d', 
+                  color: '#fffbe7', 
+                  border: 'none', 
                   borderRadius: 8, 
-                  border: passwordError ? '2px solid #b91c1c' : '1px solid #e0cba8',
-                  fontSize: '1rem'
+                  fontWeight: 'bold', 
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  marginTop: 16,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s ease'
                 }}
-              />
-              {passwordError && (
-                <p style={{ color: '#b91c1c', marginTop: 4 }}>Incorrect password</p>
-              )}
-            </div>
-            <button 
-              type="submit" 
-              style={{
-                width: '100%', 
-                padding: '1rem', 
-                background: '#6b4f1d', 
-                color: '#fffbe7', 
-                border: 'none', 
-                borderRadius: 8, 
-                fontWeight: 'bold', 
-                fontSize: '1rem',
-                cursor: 'pointer',
-                marginTop: 8
-              }}
-            >
-              Login
-            </button>
-          </form>
+              >
+                Login
+              </button>
+            </form>
+          </div>
         </div>
       </>
     );
@@ -274,6 +297,53 @@ export default function Admin() {
     }
   };
 
+  const handleEditPastry = (pastry) => {
+    setEditingPastry(pastry.id);
+    setEditPastryFields({
+      name: pastry.name,
+      description: pastry.description || '',
+      image: pastry.image || ''
+    });
+  };
+
+  const handleEditPastryFieldChange = (field, value) => {
+    setEditPastryFields(f => ({ ...f, [field]: value }));
+  };
+
+  const handleSavePastry = async (id) => {
+    const { error } = await updatePastry({
+      id,
+      name: editPastryFields.name,
+      description: editPastryFields.description,
+      image: editPastryFields.image
+    });
+    if (!error) {
+      setPastries(pastries.map(p => p.id === id ? { ...p, ...editPastryFields } : p));
+      setEditingPastry(null);
+      setPastryMsg('Saved!');
+      setTimeout(() => setPastryMsg(''), 1200);
+    }
+  };
+
+  const handleAddPastry = async () => {
+    if (!editPastryFields.name.trim()) return;
+    const { error, data } = await addPastry(editPastryFields);
+    if (!error) {
+      setPastries([...pastries, data]);
+      setEditPastryFields({ name: '', description: '', image: '' });
+      setPastryMsg('Added!');
+      setTimeout(() => setPastryMsg(''), 1200);
+    }
+  };
+
+  const handleDeletePastry = async (id) => {
+    if (!window.confirm('Delete this pastry?')) return;
+    const { error } = await deletePastry(id);
+    if (!error) {
+      setPastries(pastries.filter(p => p.id !== id));
+    }
+  };
+
   // Metrics
   const coffeeReviewCounts = coffees.map(c => ({
     ...c,
@@ -287,391 +357,885 @@ export default function Admin() {
   tastings.forEach(t => (t.flavor_tags || []).forEach(tag => { flavorCounts[tag] = (flavorCounts[tag] || 0) + 1; }));
   const topFlavors = Object.entries(flavorCounts).sort((a, b) => b[1] - a[1]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
+  const menuTabs = () => (
+    <div style={{ 
+      display: 'flex', 
+      borderBottom: '1px solid #e0cba8', 
+      marginBottom: 24, 
+      overflowX: 'auto',
+      background: '#fff',
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8,
+      padding: '0 16px'
+    }}>
+      {['config', 'coffees', 'tastings', 'reviews', 'users', 'tags', 'pastries'].map(t => (
+        <div
+          key={t}
+          onClick={() => setTab(t)}
+          style={{
+            padding: '16px 24px',
+            cursor: 'pointer',
+            fontWeight: tab === t ? 'bold' : 'normal',
+            color: '#6b4f1d',
+            borderBottom: tab === t ? '3px solid #6b4f1d' : '3px solid transparent',
+            textTransform: 'capitalize',
+            whiteSpace: 'nowrap',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {t}
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderPastryFeedback = () => {
+    return (
+      <div style={{ marginTop: 32 }}>
+        <h2 style={{ color: '#6b4f1d', marginBottom: 16 }}>Pastry Feedback</h2>
+        
+        {pastryFeedback.length > 0 ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: 8, overflow: 'hidden' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>User</th>
+                  <th style={thStyle}>Feedback</th>
+                  <th style={thStyle}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pastryFeedback.map(feedback => (
+                  <tr key={feedback.id} style={{ background: '#fff' }}>
+                    <td style={tdStyle}>{feedback.user_name || 'Anonymous'}</td>
+                    <td style={tdStyle}>{feedback.feedback}</td>
+                    <td style={tdStyle}>{new Date(feedback.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ padding: 16, background: '#f7ecd7', borderRadius: 8, textAlign: 'center', color: '#6b4f1d' }}>
+            No feedback submitted yet.
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <div style={{ minHeight: '100vh', background: '#fffbe7', padding: '2rem', paddingTop: '5rem', fontFamily: 'sans-serif', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ fontSize: 18, color: '#6b4f1d' }}>Loading admin dashboard...</div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <Header />
       <div style={{ minHeight: '100vh', background: '#fffbe7', padding: '2rem', paddingTop: '5rem', fontFamily: 'sans-serif' }}>
-        <h1 style={{ color: '#6b4f1d', marginBottom: 24 }}>Admin</h1>
-        <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
-          <button onClick={() => setTab('config')} style={tab === 'config' ? tabActiveStyle : tabStyle}>Coffee Config</button>
-          <button onClick={() => setTab('users')} style={tab === 'users' ? tabActiveStyle : tabStyle}>Users</button>
-          <button onClick={() => setTab('tastings')} style={tab === 'tastings' ? tabActiveStyle : tabStyle}>Tastings</button>
-          <button onClick={() => setTab('reviews')} style={tab === 'reviews' ? tabActiveStyle : tabStyle}>Reviews</button>
-          <button onClick={() => setTab('results')} style={tab === 'results' ? tabActiveStyle : tabStyle}>Results</button>
-          <button onClick={() => setTab('tags')} style={tab === 'tags' ? tabActiveStyle : tabStyle}>Flavor Tags</button>
-        </div>
-        {tab === 'config' && (
-          <div>
-            <h2 style={{ color: '#6b4f1d' }}>Coffee Config</h2>
-            <table style={{ width: '100%', maxWidth: 900, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Description</th>
-                  <th style={thStyle}>Tags</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {coffees.map((c, idx) => (
-                  <tr key={c.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
-                    <td style={tdStyle}>
-                      {editingCoffee === c.id ? (
-                        <input value={editFields.name} onChange={e => handleEditFieldChange('name', e.target.value)} style={inputStyle} />
-                      ) : c.name}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingCoffee === c.id ? (
-                        <input value={editFields.description} onChange={e => handleEditFieldChange('description', e.target.value)} style={inputStyle} />
-                      ) : c.description}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingCoffee === c.id ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {flavorTags.map(tag => (
-                            <button
-                              key={tag.id}
-                              onClick={() => handleTagChange(tag.name)}
-                              style={{
-                                background: editFields.tags.includes(tag.name) ? '#6b4f1d' : '#e0cba8',
-                                color: editFields.tags.includes(tag.name) ? '#fffbe7' : '#6b4f1d',
-                                border: 'none',
-                                borderRadius: 16,
-                                padding: '0.5rem 1rem',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                fontSize: '0.9rem'
-                              }}
-                            >
-                              {tag.name}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (c.tags || []).join(', ')}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingCoffee === c.id ? (
-                        <>
-                          <button onClick={() => handleSaveCoffee(c.id)} style={saveBtnStyle}>Save</button>
-                          <button onClick={() => setEditingCoffee(null)} style={cancelBtnStyle}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => handleEditCoffee(c)} style={editBtnStyle}>Edit</button>
-                          <button onClick={() => handleDeleteCoffee(c.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c', marginLeft: 8 }}>Delete</button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {saveMsg && <div style={{ color: 'green', textAlign: 'center', marginTop: 16 }}>{saveMsg}</div>}
-          </div>
-        )}
-        {tab === 'users' && (
-          <div>
-            <h2 style={{ color: '#6b4f1d' }}>Users</h2>
-            <table style={{ width: '100%', maxWidth: 600, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
-              <thead>
-                <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Created At</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u, idx) => (
-                  <tr key={u.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
-                    <td style={tdStyle}>{u.name}</td>
-                    <td style={tdStyle}>{u.created_at ? new Date(u.created_at).toLocaleString() : ''}</td>
-                    <td style={tdStyle}>
-                      <button onClick={() => handleDeleteUser(u.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c' }}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {tab === 'tastings' && (
-          <div>
-            <h2 style={{ color: '#6b4f1d' }}>Tastings</h2>
-            <table style={{ width: '100%', maxWidth: 900, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>User</th>
-                  <th style={thStyle}>Coffee</th>
-                  <th style={thStyle}>Flavor Tags</th>
-                  <th style={thStyle}>Emoji</th>
-                  <th style={thStyle}>Note</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {tastings.map((t, idx) => (
-                  <tr key={t.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
-                    <td style={tdStyle}>{users.find(u => u.id === t.user_id)?.name || t.user_id}</td>
-                    <td style={tdStyle}>{coffees.find(c => c.id === t.coffee_id)?.name || t.coffee_id}</td>
-                    <td style={tdStyle}>
-                      {editingTasting === t.id ? (
-                        <input value={editTastingFields.flavor_tags} onChange={e => handleEditTastingFieldChange('flavor_tags', e.target.value)} style={inputStyle} />
-                      ) : (t.flavor_tags || []).join(', ')}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingTasting === t.id ? (
-                        <input value={editTastingFields.emoji} onChange={e => handleEditTastingFieldChange('emoji', e.target.value)} style={inputStyle} />
-                      ) : t.emoji}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingTasting === t.id ? (
-                        <input value={editTastingFields.note} onChange={e => handleEditTastingFieldChange('note', e.target.value)} style={inputStyle} />
-                      ) : t.note}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingTasting === t.id ? (
-                        <>
-                          <button onClick={() => handleSaveTasting(t.id)} style={saveBtnStyle}>Save</button>
-                          <button onClick={() => setEditingTasting(null)} style={cancelBtnStyle}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => handleEditTasting(t)} style={editBtnStyle}>Edit</button>
-                          <button onClick={() => handleDeleteTasting(t.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c', marginLeft: 8 }}>Delete</button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {tab === 'reviews' && (
-          <div>
-            <h2 style={{ color: '#6b4f1d' }}>Reviews</h2>
-            <table style={{ width: '100%', maxWidth: 900, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>User</th>
-                  <th style={thStyle}>Coffee</th>
-                  <th style={thStyle}>Rank</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {reviews.map((r, idx) => (
-                  <tr key={r.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
-                    <td style={tdStyle}>{users.find(u => u.id === r.user_id)?.name || r.user_id}</td>
-                    <td style={tdStyle}>{coffees.find(c => c.id === r.coffee_id)?.name || r.coffee_id}</td>
-                    <td style={tdStyle}>
-                      {editingReview === r.id ? (
-                        <input value={editReviewFields.rank} onChange={e => handleEditReviewFieldChange('rank', e.target.value)} style={inputStyle} type="number" min={1} />
-                      ) : r.rank}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingReview === r.id ? (
-                        <>
-                          <button onClick={() => handleSaveReview(r.id)} style={saveBtnStyle}>Save</button>
-                          <button onClick={() => setEditingReview(null)} style={cancelBtnStyle}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => handleEditReview(r)} style={editBtnStyle}>Edit</button>
-                          <button onClick={() => handleDeleteReview(r.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c', marginLeft: 8 }}>Delete</button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {tab === 'results' && (
-          <div>
-            <h2 style={{ color: '#6b4f1d' }}>Results</h2>
-            {/* Medal Table */}
-            {(() => {
-              const favoriteCounts = {};
-              const secondCounts = {};
-              const thirdCounts = {};
-              reviews.forEach(r => {
-                if (r.rank === 1) favoriteCounts[r.coffee_id] = (favoriteCounts[r.coffee_id] || 0) + 1;
-                if (r.rank === 2) secondCounts[r.coffee_id] = (secondCounts[r.coffee_id] || 0) + 1;
-                if (r.rank === 3) thirdCounts[r.coffee_id] = (thirdCounts[r.coffee_id] || 0) + 1;
-              });
-              const sortedByFavorites = [...coffees].sort((a, b) => (favoriteCounts[b.id] || 0) - (favoriteCounts[a.id] || 0));
-              const medals = ['🥇', '🥈', '🥉'];
-              return (
-                <div style={{ width: '100%', maxWidth: 700, background: '#fff', borderRadius: 8, padding: 16, marginBottom: 32, marginTop: 24 }}>
-                  <h3 style={{ color: '#6b4f1d', fontSize: 20, marginBottom: 16 }}>Coffee Medal Table</h3>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ ...thStyle, textAlign: 'left' }}>Coffee</th>
-                        <th style={thStyle}>#1 Votes</th>
-                        <th style={thStyle}>#2 Votes</th>
-                        <th style={thStyle}>#3 Votes</th>
-                        <th style={thStyle}>Medal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedByFavorites.map((c, idx) => {
-                        const medal = idx < 3 ? medals[idx] : '';
-                        return (
-                          <tr key={c.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
-                            <td style={tdStyle}>{c.name}</td>
-                            <td style={tdStyle}>{favoriteCounts[c.id] || 0}</td>
-                            <td style={tdStyle}>{secondCounts[c.id] || 0}</td>
-                            <td style={tdStyle}>{thirdCounts[c.id] || 0}</td>
-                            <td style={tdStyle}>{medal}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <h1 style={{ color: '#6b4f1d', marginBottom: 24, fontSize: 28 }}>Admin Dashboard</h1>
+          
+          <div style={{ 
+            background: '#fff', 
+            borderRadius: 12, 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', 
+            marginBottom: 32,
+            overflow: 'hidden'
+          }}>
+            {menuTabs()}
+            
+            <div style={{ padding: 24 }}>
+              {tab === 'config' && (
+                <div>
+                  <h2 style={{ color: '#6b4f1d', marginBottom: 16 }}>Website Configuration</h2>
+                  <p style={{ color: '#6b4f1d', marginBottom: 24 }}>
+                    Welcome to the admin dashboard. Use the tabs above to manage your coffee data.
+                  </p>
+                  
+                  <div style={{ 
+                    background: '#f7ecd7', 
+                    padding: 20, 
+                    borderRadius: 12,
+                    marginBottom: 24
+                  }}>
+                    <h3 style={{ color: '#6b4f1d', marginBottom: 12 }}>Quick Stats</h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                      <div style={{ 
+                        flex: '1 0 200px', 
+                        background: '#fff', 
+                        padding: 16, 
+                        borderRadius: 8,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ color: '#6b4f1d', fontWeight: 'bold', marginBottom: 4 }}>Coffees</div>
+                        <div style={{ fontSize: 24, color: '#6b4f1d' }}>{coffees.length}</div>
+                      </div>
+                      <div style={{ 
+                        flex: '1 0 200px', 
+                        background: '#fff', 
+                        padding: 16, 
+                        borderRadius: 8,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ color: '#6b4f1d', fontWeight: 'bold', marginBottom: 4 }}>Users</div>
+                        <div style={{ fontSize: 24, color: '#6b4f1d' }}>{users.length}</div>
+                      </div>
+                      <div style={{ 
+                        flex: '1 0 200px', 
+                        background: '#fff', 
+                        padding: 16, 
+                        borderRadius: 8,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ color: '#6b4f1d', fontWeight: 'bold', marginBottom: 4 }}>Tastings</div>
+                        <div style={{ fontSize: 24, color: '#6b4f1d' }}>{tastings.length}</div>
+                      </div>
+                      <div style={{ 
+                        flex: '1 0 200px', 
+                        background: '#fff', 
+                        padding: 16, 
+                        borderRadius: 8,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ color: '#6b4f1d', fontWeight: 'bold', marginBottom: 4 }}>Reviews</div>
+                        <div style={{ fontSize: 24, color: '#6b4f1d' }}>{reviews.length}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              );
-            })()}
-            <h3 style={{ color: '#6b4f1d' }}>Top-Rated Coffees</h3>
-            <div style={{ maxWidth: 600, margin: '0 auto 32px auto', background: '#fff', borderRadius: 8, padding: 16 }}>
-              <Bar
-                data={{
-                  labels: coffeeReviewCounts.map(c => c.name),
-                  datasets: [
-                    {
-                      label: '# Reviews',
-                      data: coffeeReviewCounts.map(c => c.reviewCount),
-                      backgroundColor: '#6b4f1d',
-                    }
-                  ]
-                }}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                  },
-                  scales: {
-                    x: { ticks: { color: '#6b4f1d', font: { weight: 'bold' } } },
-                    y: { beginAtZero: true, ticks: { color: '#6b4f1d' } }
-                  }
-                }}
-              />
+              )}
+
+              {tab === 'coffees' && (
+                <div>
+                  <h2 style={{ color: '#6b4f1d', marginBottom: 24 }}>Manage Coffees</h2>
+                  
+                  <div className="overflow-auto" style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Name</th>
+                          <th style={thStyle}>Description</th>
+                          <th style={thStyle}>Tags</th>
+                          <th style={thStyle}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {coffees.map(coffee => (
+                          <tr key={coffee.id}>
+                            <td style={tdStyle}>
+                              {editingCoffee === coffee.id ? (
+                                <input
+                                  type="text"
+                                  value={editFields.name}
+                                  onChange={e => handleEditFieldChange('name', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : (
+                                coffee.name
+                              )}
+                            </td>
+                            <td style={tdStyle}>
+                              {editingCoffee === coffee.id ? (
+                                <textarea
+                                  value={editFields.description}
+                                  onChange={e => handleEditFieldChange('description', e.target.value)}
+                                  rows={2}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : (
+                                coffee.description
+                              )}
+                            </td>
+                            <td style={tdStyle}>
+                              {editingCoffee === coffee.id ? (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                  {flavorTags.map(tag => (
+                                    <label key={tag.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', padding: '4px 8px', borderRadius: 4, background: editFields.tags.includes(tag.name) ? '#f7ecd7' : 'transparent' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={editFields.tags.includes(tag.name)}
+                                        onChange={() => handleTagChange(tag.name)}
+                                        style={{ marginRight: 4 }}
+                                      />
+                                      {tag.name}
+                                    </label>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                  {(coffee.tags || []).map(tag => (
+                                    <span key={tag} style={{ 
+                                      background: '#e0cba8', 
+                                      color: '#6b4f1d', 
+                                      padding: '2px 8px', 
+                                      borderRadius: 12,
+                                      fontSize: 14
+                                    }}>
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                              {editingCoffee === coffee.id ? (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleSaveCoffee(coffee.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#15803d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingCoffee(null)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#e0cba8', 
+                                      color: '#6b4f1d', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleEditCoffee(coffee)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#6b4f1d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteCoffee(coffee.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#b91c1c', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {tab === 'tastings' && (
+                <div>
+                  <h2 style={{ color: '#6b4f1d', marginBottom: 24 }}>Manage Tastings</h2>
+                  
+                  <div className="overflow-auto" style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>User</th>
+                          <th style={thStyle}>Coffee</th>
+                          <th style={thStyle}>Flavor Tags</th>
+                          <th style={thStyle}>Emoji</th>
+                          <th style={thStyle}>Note</th>
+                          <th style={thStyle}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tastings.map(tasting => (
+                          <tr key={tasting.id}>
+                            <td style={tdStyle}>{users.find(u => u.id === tasting.user_id)?.name || tasting.user_id}</td>
+                            <td style={tdStyle}>{coffees.find(c => c.id === tasting.coffee_id)?.name || tasting.coffee_id}</td>
+                            <td style={tdStyle}>
+                              {editingTasting === tasting.id ? (
+                                <input
+                                  value={editTastingFields.flavor_tags}
+                                  onChange={e => handleEditTastingFieldChange('flavor_tags', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : (tasting.flavor_tags || []).join(', ')}
+                            </td>
+                            <td style={tdStyle}>
+                              {editingTasting === tasting.id ? (
+                                <input
+                                  value={editTastingFields.emoji}
+                                  onChange={e => handleEditTastingFieldChange('emoji', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : tasting.emoji}
+                            </td>
+                            <td style={tdStyle}>
+                              {editingTasting === tasting.id ? (
+                                <input
+                                  value={editTastingFields.note}
+                                  onChange={e => handleEditTastingFieldChange('note', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : tasting.note}
+                            </td>
+                            <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                              {editingTasting === tasting.id ? (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleSaveTasting(tasting.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#15803d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingTasting(null)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#e0cba8', 
+                                      color: '#6b4f1d', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleEditTasting(tasting)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#6b4f1d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteTasting(tasting.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#b91c1c', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {tab === 'reviews' && (
+                <div>
+                  <h2 style={{ color: '#6b4f1d', marginBottom: 24 }}>Manage Reviews</h2>
+                  
+                  <div className="overflow-auto" style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>User</th>
+                          <th style={thStyle}>Coffee</th>
+                          <th style={thStyle}>Rank</th>
+                          <th style={thStyle}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reviews.map(review => (
+                          <tr key={review.id}>
+                            <td style={tdStyle}>{users.find(u => u.id === review.user_id)?.name || review.user_id}</td>
+                            <td style={tdStyle}>{coffees.find(c => c.id === review.coffee_id)?.name || review.coffee_id}</td>
+                            <td style={tdStyle}>
+                              {editingReview === review.id ? (
+                                <input
+                                  type="number"
+                                  value={editReviewFields.rank}
+                                  onChange={e => handleEditReviewFieldChange('rank', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : review.rank}
+                            </td>
+                            <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                              {editingReview === review.id ? (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleSaveReview(review.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#15803d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingReview(null)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#e0cba8', 
+                                      color: '#6b4f1d', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleEditReview(review)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#6b4f1d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteReview(review.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#b91c1c', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {tab === 'users' && (
+                <div>
+                  <h2 style={{ color: '#6b4f1d', marginBottom: 24 }}>Manage Users</h2>
+                  
+                  <div className="overflow-auto" style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Name</th>
+                          <th style={thStyle}>Created At</th>
+                          <th style={thStyle}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map(user => (
+                          <tr key={user.id}>
+                            <td style={tdStyle}>{user.name}</td>
+                            <td style={tdStyle}>{user.created_at ? new Date(user.created_at).toLocaleString() : ''}</td>
+                            <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button 
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  style={{ 
+                                    padding: '6px 12px', 
+                                    background: '#b91c1c', 
+                                    color: '#fff', 
+                                    border: 'none', 
+                                    borderRadius: 4, 
+                                    cursor: 'pointer',
+                                    fontSize: 14
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {tab === 'tags' && (
+                <div>
+                  <h2 style={{ color: '#6b4f1d', marginBottom: 24 }}>Manage Flavor Tags</h2>
+                  
+                  <div className="overflow-auto" style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Name</th>
+                          <th style={thStyle}>Description</th>
+                          <th style={thStyle}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {flavorTags.map(tag => (
+                          <tr key={tag.id}>
+                            <td style={tdStyle}>
+                              {editingTag === tag.id ? (
+                                <input
+                                  value={editTagFields.name}
+                                  onChange={e => handleEditTagFieldChange('name', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : tag.name}
+                            </td>
+                            <td style={tdStyle}>
+                              {editingTag === tag.id ? (
+                                <input
+                                  value={editTagFields.description}
+                                  onChange={e => handleEditTagFieldChange('description', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : tag.description}
+                            </td>
+                            <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                              {editingTag === tag.id ? (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleSaveTag(tag.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#15803d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingTag(null)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#e0cba8', 
+                                      color: '#6b4f1d', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleEditTag(tag)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#6b4f1d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteTag(tag.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#b91c1c', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {tab === 'pastries' && (
+                <div>
+                  <h2 style={{ color: '#6b4f1d', marginBottom: 24 }}>Manage Pastries</h2>
+                  
+                  <div className="overflow-auto" style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Image</th>
+                          <th style={thStyle}>Name</th>
+                          <th style={thStyle}>Description</th>
+                          <th style={thStyle}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pastries.map(pastry => (
+                          <tr key={pastry.id}>
+                            <td style={tdStyle}>
+                              {editingPastry === pastry.id ? (
+                                <input
+                                  value={editPastryFields.image}
+                                  onChange={e => handleEditPastryFieldChange('image', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : pastry.image}
+                            </td>
+                            <td style={tdStyle}>
+                              {editingPastry === pastry.id ? (
+                                <input
+                                  value={editPastryFields.name}
+                                  onChange={e => handleEditPastryFieldChange('name', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : pastry.name}
+                            </td>
+                            <td style={tdStyle}>
+                              {editingPastry === pastry.id ? (
+                                <input
+                                  value={editPastryFields.description}
+                                  onChange={e => handleEditPastryFieldChange('description', e.target.value)}
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '0.5rem', 
+                                    borderRadius: 4, 
+                                    border: '1px solid #e0cba8',
+                                    fontSize: '1rem'
+                                  }}
+                                />
+                              ) : pastry.description}
+                            </td>
+                            <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                              {editingPastry === pastry.id ? (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleSavePastry(pastry.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#15803d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingPastry(null)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#e0cba8', 
+                                      color: '#6b4f1d', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button 
+                                    onClick={() => handleEditPastry(pastry)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#6b4f1d', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeletePastry(pastry.id)}
+                                    style={{ 
+                                      padding: '6px 12px', 
+                                      background: '#b91c1c', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      borderRadius: 4, 
+                                      cursor: 'pointer',
+                                      fontSize: 14
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {renderPastryFeedback()}
+                </div>
+              )}
             </div>
-            <h3 style={{ color: '#6b4f1d' }}>Most Selected Flavors</h3>
-            <div style={{ maxWidth: 600, margin: '0 auto 32px auto', background: '#fff', borderRadius: 8, padding: 16 }}>
-              <Bar
-                data={{
-                  labels: topFlavors.map(([tag]) => tag),
-                  datasets: [
-                    {
-                      label: 'Count',
-                      data: topFlavors.map(([_, count]) => count),
-                      backgroundColor: '#b91c1c',
-                    }
-                  ]
-                }}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                  },
-                  scales: {
-                    x: { ticks: { color: '#6b4f1d', font: { weight: 'bold' } } },
-                    y: { beginAtZero: true, ticks: { color: '#6b4f1d' } }
-                  }
-                }}
-              />
-            </div>
-            <table style={{ width: '100%', maxWidth: 600, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
-              <thead>
-                <tr style={{ background: '#e0cba8', color: '#6b4f1d' }}>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}># Reviews</th>
-                  <th style={thStyle}>Avg. Rank</th>
-                </tr>
-              </thead>
-              <tbody>
-                {coffeeReviewCounts.map((c, idx) => (
-                  <tr key={c.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
-                    <td style={tdStyle}>{c.name}</td>
-                    <td style={tdStyle}>{c.reviewCount}</td>
-                    <td style={tdStyle}>{c.avgRank}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button style={exportBtnStyle} onClick={() => {
-              const data = { coffees, users, tastings, reviews };
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'brewhaha-data.json';
-              a.click();
-            }}>Export JSON</button>
           </div>
-        )}
-        {tab === 'tags' && (
-          <div>
-            <h2 style={{ color: '#6b4f1d' }}>Flavor Tags</h2>
-            <table style={{ width: '100%', maxWidth: 600, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', marginBottom: 24 }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Description</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {flavorTags.map((tag, idx) => (
-                  <tr key={tag.id} style={{ background: idx % 2 === 0 ? '#f7ecd7' : '#fff' }}>
-                    <td style={tdStyle}>
-                      {editingTag === tag.id ? (
-                        <input value={editTagFields.name} onChange={e => handleEditTagFieldChange('name', e.target.value)} style={inputStyle} />
-                      ) : tag.name}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingTag === tag.id ? (
-                        <input value={editTagFields.description} onChange={e => handleEditTagFieldChange('description', e.target.value)} style={inputStyle} />
-                      ) : tag.description}
-                    </td>
-                    <td style={tdStyle}>
-                      {editingTag === tag.id ? (
-                        <>
-                          <button onClick={() => handleSaveTag(tag.id)} style={saveBtnStyle}>Save</button>
-                          <button onClick={() => setEditingTag(null)} style={cancelBtnStyle}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => handleEditTag(tag)} style={editBtnStyle}>Edit</button>
-                          <button onClick={() => handleDeleteTag(tag.id)} style={{ ...editBtnStyle, background: '#fffbe7', color: '#b91c1c', border: '1px solid #b91c1c', marginLeft: 8 }}>Delete</button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td style={tdStyle}>
-                    <input value={editTagFields.name} onChange={e => handleEditTagFieldChange('name', e.target.value)} style={inputStyle} placeholder="New tag name" />
-                  </td>
-                  <td style={tdStyle}>
-                    <input value={editTagFields.description} onChange={e => handleEditTagFieldChange('description', e.target.value)} style={inputStyle} placeholder="Description (optional)" />
-                  </td>
-                  <td style={tdStyle}>
-                    <button onClick={handleAddTag} style={saveBtnStyle}>Add</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            {tagMsg && <div style={{ color: 'green', textAlign: 'center', marginTop: 16 }}>{tagMsg}</div>}
+          
+          <div style={{ marginTop: 40, textAlign: 'center' }}>
+            <a href="/">
+              <button style={{
+                padding: '12px 24px',
+                background: '#e0cba8',
+                color: '#6b4f1d',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: 'bold',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                Return to Homepage
+              </button>
+            </a>
           </div>
-        )}
+        </div>
       </div>
     </>
   );

@@ -56,7 +56,7 @@ export default function Choose() {
     async function fetchData() {
       setLoading(true);
       const userId = getStoredUserId();
-      const stored = typeof window !== 'undefined' ? localStorage.getItem('brewHahaName') : '';
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('coffeeHouseName') : '';
       if (userId && stored) {
         setName(stored);
         setNameSet(true);
@@ -75,7 +75,7 @@ export default function Choose() {
     if (name.trim()) {
       setSubmitting(true);
       setErrorMsg('');
-      localStorage.setItem('brewHahaName', name.trim());
+      localStorage.setItem('coffeeHouseName', name.trim());
       let user = null;
       let attempts = 0;
       while (!user && attempts < 3) {
@@ -142,53 +142,12 @@ export default function Choose() {
     return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
   }
 
-  // Show name prompt before quiz if not set
-  if (!nameSet) {
-    return (
-      <>
-        <Header />
-        <div style={{...pageStyle, paddingTop: '5rem'}}>
-          <h1 style={{ color: '#6b4f1d' }}>Welcome to BrewHaha!</h1>
-          <form onSubmit={handleNameSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', minWidth: 260 }}>
-            <label style={{ color: '#6b4f1d', fontWeight: 'bold' }}>
-              What's your name?
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Enter your name"
-                style={{
-                  padding: '0.8rem',
-                  borderRadius: 12,
-                  border: '1px solid #e0cba8',
-                  fontSize: '1.1rem',
-                  fontFamily: 'inherit',
-                  background: '#fffbe7',
-                  color: '#6b4f1d',
-                  width: '100%',
-                  marginTop: 8
-                }}
-                required
-              />
-            </label>
-            {errorMsg && (
-              <div style={{ color: 'red', marginBottom: 16, textAlign: 'center' }}>{errorMsg}</div>
-            )}
-            <button type="submit" style={buttonStyle} disabled={submitting}>
-              {submitting ? 'Loading...' : 'Start Quiz'}
-            </button>
-          </form>
-        </div>
-      </>
-    );
-  }
-
   // After last question, show result
   if (step >= questions.length) {
     const coffee = styleToCoffee[answers[0]] || (coffees.length > 2 ? coffees[2] : null); // fallback to Coffee C
     // Save recommendation to localStorage
     if (coffee && typeof window !== 'undefined') {
-      localStorage.setItem('brewHahaRecommendation', JSON.stringify({
+      localStorage.setItem('coffeeHouseRecommendation', JSON.stringify({
         coffeeId: coffee.id,
         name: coffee.name,
         description: coffee.description
@@ -198,21 +157,87 @@ export default function Choose() {
       <>
         <Header />
         <div style={{...pageStyle, paddingTop: '5rem'}}>
-          <h1 style={{ color: '#6b4f1d' }}>Your Coffee Match</h1>
-          <h2 style={{ color: '#6b4f1d', marginTop: 0 }}>{coffee ? coffee.name : ''}</h2>
-          <p style={{ maxWidth: 320, textAlign: 'center', color: '#6b4f1d' }}>{coffee ? coffee.description : ''}</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 320 }}>
-            <a href={coffee ? `/taste?coffee=${coffee.id}` : '#'} style={{ width: '100%' }}>
-              <button style={buttonStyle} disabled={!coffee}>Go Taste This Coffee</button>
-            </a>
-            <button style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d' }} onClick={resetQuiz}>
-              Start Over
-            </button>
-            <a href="/" style={{ width: '100%' }}>
-              <button style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d' }}>
-                Return to Homepage
+          <div style={{ 
+            maxWidth: 480, 
+            background: '#fff', 
+            borderRadius: 16, 
+            padding: 32, 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', 
+            textAlign: 'center',
+            marginBottom: 24
+          }}>
+            <h1 style={{ color: '#6b4f1d', marginBottom: 8 }}>Your Coffee Match</h1>
+            <h2 style={{ color: '#b91c1c', marginTop: 0, fontSize: 28 }}>{coffee ? coffee.name : ''}</h2>
+            <p style={{ color: '#6b4f1d', fontSize: 16, lineHeight: 1.6 }}>{coffee ? coffee.description : ''}</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', marginTop: 32 }}>
+              <a href={coffee ? `/taste?coffee=${coffee.id}` : '#'} style={{ width: '100%' }}>
+                <button style={{...buttonStyle, padding: '1.2rem'}} disabled={!coffee}>
+                  Go Taste This Coffee
+                </button>
+              </a>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d', flex: 1 }} onClick={resetQuiz}>
+                  Start Over
+                </button>
+                <a href="/" style={{ flex: 1 }}>
+                  <button style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d', width: '100%' }}>
+                    Return Home
+                  </button>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Show name prompt before quiz if not set
+  if (!nameSet) {
+    return (
+      <>
+        <Header />
+        <div style={{...pageStyle, paddingTop: '5rem'}}>
+          <div style={{ 
+            maxWidth: 480, 
+            background: '#fff', 
+            borderRadius: 16, 
+            padding: 32, 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            width: '100%'
+          }}>
+            <h1 style={{ color: '#6b4f1d', textAlign: 'center', marginBottom: 24 }}>Welcome to Coffee House!</h1>
+            <form onSubmit={handleNameSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <label style={{ color: '#6b4f1d', fontWeight: 'bold' }}>
+                What's your name?
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Enter your name"
+                  style={{
+                    padding: '1rem',
+                    borderRadius: 12,
+                    border: '1px solid #e0cba8',
+                    fontSize: '1.1rem',
+                    fontFamily: 'inherit',
+                    background: '#fffbe7',
+                    color: '#6b4f1d',
+                    width: '100%',
+                    marginTop: 8,
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                  }}
+                  required
+                />
+              </label>
+              {errorMsg && (
+                <div style={{ color: '#b91c1c', padding: '8px 12px', background: '#fee', borderRadius: 8, textAlign: 'center' }}>{errorMsg}</div>
+              )}
+              <button type="submit" style={{...buttonStyle, marginTop: 8}} disabled={submitting}>
+                {submitting ? 'Loading...' : 'Start Coffee Quiz'}
               </button>
-            </a>
+            </form>
           </div>
         </div>
       </>
@@ -225,76 +250,117 @@ export default function Choose() {
     <>
       <Header />
       <div style={{...pageStyle, paddingTop: '5rem', position: 'relative'}}>
-        <h1 style={{ color: '#6b4f1d' }}>Choose Your Coffee</h1>
-        <p style={{ fontWeight: 'bold', color: '#6b4f1d', marginBottom: 24 }}>{q.prompt}</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 320 }}>
-          {q.options.map((opt) => (
-            <label key={opt.value} style={{
-              background: '#e0cba8',
-              color: '#6b4f1d',
-              borderRadius: 12,
-              padding: '1rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              border: '2px solid #e0cba8',
-              marginBottom: 4,
-              transition: 'border 0.2s'
-            }}>
-              <input
-                type="radio"
-                name={`q${step}`}
-                value={opt.value}
-                onChange={() => handleOption(opt.value)}
-                style={{ marginRight: 12 }}
-              />
-              {opt.label}
-            </label>
-          ))}
-        </div>
-        {showPastryPopup && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 2000
-          }}>
-            <div style={{
-              background: '#fffbe7',
-              borderRadius: 16,
-              padding: '2rem',
-              boxShadow: '0 4px 24px #0003',
-              minWidth: 320,
-              maxWidth: '90vw',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 24
-            }}>
-              <button onClick={handlePastryPopupClose} style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', fontSize: 24, color: '#6b4f1d', cursor: 'pointer' }}>×</button>
-              <div style={{ fontSize: 48, marginBottom: 8 }}>🚨</div>
-              <div style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: 22, textAlign: 'center' }}>Go get a pastry!</div>
-              <button onClick={handlePastryPopupClose} style={{
-                background: '#b91c1c',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '0.8rem 2rem',
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                marginTop: 8
-              }}>Done</button>
+        <div style={{ 
+          maxWidth: 480, 
+          background: '#fff', 
+          borderRadius: 16, 
+          padding: 32, 
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          width: '100%'
+        }}>
+          {/* Progress bar */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: '#6b4f1d', fontSize: 14 }}>Question {step + 1}/{questions.length}</span>
+              <span style={{ color: '#6b4f1d', fontSize: 14 }}>{Math.round(((step + 1) / questions.length) * 100)}%</span>
+            </div>
+            <div style={{ height: 8, background: '#e0cba8', borderRadius: 4, overflow: 'hidden' }}>
+              <div 
+                style={{ 
+                  height: '100%', 
+                  width: `${((step + 1) / questions.length) * 100}%`, 
+                  background: '#6b4f1d', 
+                  borderRadius: 4,
+                  transition: 'width 0.3s ease'
+                }}
+              ></div>
             </div>
           </div>
-        )}
+          
+          <h1 style={{ color: '#6b4f1d', textAlign: 'center', fontSize: 24, marginBottom: 8 }}>Choose Your Coffee</h1>
+          <p style={{ fontWeight: 'bold', color: '#6b4f1d', marginBottom: 28, textAlign: 'center', fontSize: 18 }}>{q.prompt}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {q.options.map((opt) => (
+              <div 
+                key={opt.value} 
+                onClick={() => handleOption(opt.value)}
+                style={{ 
+                  padding: '16px 20px', 
+                  background: '#e0cba8',
+                  color: '#6b4f1d',
+                  borderRadius: 12,
+                  cursor: 'pointer',
+                  border: '2px solid #e0cba8',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  ':hover': {
+                    background: '#fffbe7',
+                    borderColor: '#6b4f1d',
+                  }
+                }}
+              >
+                <input
+                  type="radio"
+                  name={`q${step}`}
+                  value={opt.value}
+                  onChange={() => {}}
+                  style={{ marginRight: 12 }}
+                />
+                <span style={{ fontWeight: 'bold', fontSize: 16 }}>{opt.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+      
+      {/* Pastry popup */}
+      {showPastryPopup && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: '#fff',
+            padding: 24,
+            borderRadius: 16,
+            maxWidth: 400,
+            width: '90%',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+          }}>
+            <h2 style={{ color: '#b91c1c', marginTop: 0 }}>Missing out on pastries?!</h2>
+            <p style={{ color: '#6b4f1d', marginBottom: 24 }}>
+              You should really try Anna's amazing pastries! They're legendary and pair perfectly with our coffee.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <a href="/pastries" style={{ marginRight: 12 }}>
+                <button
+                  type="button"
+                  style={{ ...buttonStyle, background: '#b91c1c' }}
+                >
+                  See Pastries
+                </button>
+              </a>
+              <button
+                type="button"
+                onClick={handlePastryPopupClose}
+                style={{ ...buttonStyle, background: '#e0cba8', color: '#6b4f1d' }}
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -312,16 +378,14 @@ const pageStyle = {
 
 const buttonStyle = {
   width: '100%',
-  padding: '1.2rem',
-  fontSize: '1.2rem',
+  padding: '1rem',
+  fontSize: '1.1rem',
   background: '#6b4f1d',
   color: '#fffbe7',
   border: 'none',
-  borderRadius: '1.5rem',
+  borderRadius: '0.8rem',
   fontWeight: 'bold',
-  letterSpacing: '0.02em',
   cursor: 'pointer',
-  boxShadow: '0 2px 8px #0001',
-  transition: 'background 0.2s',
-  marginTop: 24
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  transition: 'all 0.2s ease'
 };

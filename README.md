@@ -1,6 +1,6 @@
-# BrewHaha: Coffee Tasting Web App
+# Coffee House: Coffee Tasting Web App
 
-BrewHaha is an interactive web application designed for coffee tasting events, allowing users to taste, rate, and compare different coffee varieties while learning about flavor profiles.
+Coffee House is an interactive web application designed for coffee tasting events, allowing users to taste, rate, and compare different coffee varieties while learning about flavor profiles.
 
 ## Features
 
