@@ -3,7 +3,7 @@ import Header from './Header';
 import { getCoffees, upsertTasting, getTastingsForUser, getFlavorTags } from '../lib/dataSupabase';
 import { getStoredUserId } from '../lib/user';
 
-const emojiOptions = ['😋', '😍', '🤔', '😐', '😶', '🤢'];
+const emojiOptions = ['😋', '😍', '🤔', '😐', '😶', '🤢', '🤯'];
 
 export default function Taste() {
   const [coffees, setCoffees] = useState([]);
