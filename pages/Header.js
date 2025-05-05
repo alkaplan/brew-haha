@@ -29,9 +29,10 @@ export default function Header() {
     { label: 'Taste', path: '/taste' },
     { label: 'Review', path: '/review' },
     { label: 'Pastries', path: '/pastries' },
-    { label: 'About', path: '/about' },
-    { label: 'Admin', path: '/admin' }
+    { label: 'About', path: '/about' }
   ];
+
+  const adminItem = { label: 'Admin', path: '/admin' };
 
   return (
     <header style={{
@@ -189,8 +190,34 @@ export default function Header() {
             </Link>
           ))}
           
-          <div style={{ marginTop: 'auto', textAlign: 'center', color: theme.primary, fontSize: '0.9rem', opacity: 0.7 }}>
-            © 2023 Coffee House {isMomMode && '🌸'}
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ height: '1px', background: theme.accent, opacity: 0.2, margin: '0.5rem 0' }} />
+            
+            <Link href={adminItem.path} onClick={() => setIsOpen(false)}>
+              <button
+                style={{
+                  width: '100%',
+                  padding: '0.8rem',
+                  background: router.pathname === adminItem.path ? theme.accent : 'transparent',
+                  color: theme.primary,
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontWeight: router.pathname === adminItem.path ? 'bold' : 'normal',
+                  fontSize: '1.1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {adminItem.label}
+              </button>
+            </Link>
+            
+            <div style={{ textAlign: 'center', color: theme.primary, fontSize: '0.9rem', opacity: 0.7 }}>
+              © 2025 Coffee House {isMomMode && '🌸'}
+            </div>
           </div>
         </div>
       )}

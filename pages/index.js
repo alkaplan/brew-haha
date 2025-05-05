@@ -594,7 +594,7 @@ export default function Home() {
                   background: progress.choose ? '#15803d' : theme.buttonBackground,
                   marginBottom: 4
                 }}>
-                  {progress.choose ? 'Continue to Tasting' : 'Choose Your Coffee'}
+                  {progress.choose ? `Recommendation: ${recommendation?.name || ''}` : 'Choose Your Coffee'}
                 </button>
               </Link>
               

@@ -124,15 +124,15 @@ export default function PastriesPage() {
           <div style={{ maxWidth: 600, background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: 32 }}>
             <h2 style={{ color: '#6b4f1d', fontSize: 24, marginBottom: 16 }}>Congratulations!</h2>
             <p style={{ fontSize: 18, lineHeight: 1.6, color: '#6b4f1d', marginBottom: 16 }}>
-              You've discovered the truth: <strong>all pastries are 5-star worthy</strong> when paired with great coffee!
+              You've discovered the truth: <strong>Anna makes incredible pastries</strong>!
             </p>
             <p style={{ fontSize: 18, lineHeight: 1.6, color: '#6b4f1d', marginBottom: 16 }}>
-              This is why we focus on coffee instead. Pastries never disappoint, but coffee... coffee needs your expert opinion!
+              This is why we focus on coffee instead. Anna's pastries never disappoint, but coffee needs your expert opinion!
             </p>
             
             <div style={{ background: '#f7ecd7', padding: 16, borderRadius: 8, marginTop: 24 }}>
               <p style={{ fontStyle: 'italic', color: '#b91c1c' }}>
-                "Life is too short for bad coffee and mediocre pastries."
+                "Life is too short for bad coffee and stale pastries."
               </p>
             </div>
             
@@ -173,7 +173,7 @@ export default function PastriesPage() {
                   cursor: 'pointer'
                 }}
               >
-                Return to Coffee (The Real Star)
+                Return to Coffee
               </button>
             </form>
           </div>
