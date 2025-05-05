@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useTheme } from '../lib/themeContext';
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const router = useRouter();
+  const { theme, isMomMode } = useTheme();
 
   // Add scroll detection
   useEffect(() => {
@@ -37,10 +39,10 @@ export default function Header() {
       top: 0,
       left: 0,
       right: 0,
-      background: scrolled ? '#fff' : '#fffbe7',
+      background: scrolled ? theme.cardBackground : theme.background,
       padding: '1rem 1.5rem',
       zIndex: 1000,
-      boxShadow: scrolled ? '0 2px 10px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.05)',
+      boxShadow: scrolled ? theme.boxShadow : '0 2px 8px rgba(0,0,0,0.05)',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -50,21 +52,23 @@ export default function Header() {
         <h1 
           style={{ 
             margin: 0, 
-            color: '#6b4f1d',
+            color: theme.primary,
             fontSize: scrolled ? '1.3rem' : '1.5rem',
             fontWeight: 'bold',
             cursor: 'pointer',
             transition: 'all 0.3s ease',
-            letterSpacing: '0.02em'
+            letterSpacing: '0.02em',
+            display: 'flex',
+            alignItems: 'center'
           }}
         >
-          Coffee House
+          Coffee House {isMomMode && <span style={{ marginLeft: 8 }}>🌸</span>}
         </h1>
       </Link>
       
       <div className="desktop-menu" style={{ 
         display: 'none',
-        '@media (min-width: 768px)': {
+        '@media screen and (min-width: 768px)': {
           display: 'flex'
         }
       }}>
@@ -74,7 +78,7 @@ export default function Header() {
               style={{
                 padding: '8px 16px',
                 background: 'transparent',
-                color: router.pathname === item.path ? '#b91c1c' : '#6b4f1d',
+                color: router.pathname === item.path ? theme.secondary : theme.primary,
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -85,7 +89,7 @@ export default function Header() {
                 transition: 'all 0.2s ease',
                 position: 'relative',
                 ':hover': {
-                  color: '#b91c1c'
+                  color: theme.secondary
                 }
               }}
             >
@@ -98,7 +102,7 @@ export default function Header() {
                   transform: 'translateX(-50%)',
                   width: '20px',
                   height: '2px',
-                  background: '#b91c1c',
+                  background: theme.secondary,
                   borderRadius: '2px'
                 }} />
               )}
@@ -123,21 +127,21 @@ export default function Header() {
         <div style={{
           width: '24px',
           height: '2px',
-          background: '#6b4f1d',
+          background: theme.primary,
           transition: 'transform 0.3s',
           transform: isOpen ? 'rotate(45deg) translate(5px, 5px)' : 'none'
         }} />
         <div style={{
           width: '24px',
           height: '2px',
-          background: '#6b4f1d',
+          background: theme.primary,
           transition: 'opacity 0.3s',
           opacity: isOpen ? 0 : 1
         }} />
         <div style={{
           width: '24px',
           height: '2px',
-          background: '#6b4f1d',
+          background: theme.primary,
           transition: 'transform 0.3s',
           transform: isOpen ? 'rotate(-45deg) translate(5px, -5px)' : 'none'
         }} />
@@ -151,7 +155,7 @@ export default function Header() {
           width: '100%',
           maxWidth: '300px',
           height: '100vh',
-          background: '#fffbe7',
+          background: theme.background,
           boxShadow: '-2px 0 10px rgba(0,0,0,0.1)',
           padding: '4rem 1.5rem 1.5rem',
           display: 'flex',
@@ -167,8 +171,8 @@ export default function Header() {
                 style={{
                   width: '100%',
                   padding: '0.8rem',
-                  background: router.pathname === item.path ? '#e0cba8' : 'transparent',
-                  color: '#6b4f1d',
+                  background: router.pathname === item.path ? theme.accent : 'transparent',
+                  color: theme.primary,
                   border: 'none',
                   borderRadius: '8px',
                   cursor: 'pointer',
@@ -185,8 +189,8 @@ export default function Header() {
             </Link>
           ))}
           
-          <div style={{ marginTop: 'auto', textAlign: 'center', color: '#6b4f1d', fontSize: '0.9rem', opacity: 0.7 }}>
-            © 2025 Coffee House Inc
+          <div style={{ marginTop: 'auto', textAlign: 'center', color: theme.primary, fontSize: '0.9rem', opacity: 0.7 }}>
+            © 2023 Coffee House {isMomMode && '🌸'}
           </div>
         </div>
       )}
@@ -195,6 +199,12 @@ export default function Header() {
         @keyframes slideIn {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
+        }
+        
+        @media screen and (min-width: 768px) {
+          .desktop-menu {
+            display: flex !important;
+          }
         }
       `}</style>
     </header>
