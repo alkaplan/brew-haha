@@ -67,20 +67,25 @@ export default function PastriesPage() {
     
     // If user entered comment, save it to pastry_feedback table
     if (comment.trim()) {
-      const userId = getStoredUserId();
-      const userName = typeof window !== 'undefined' ? localStorage.getItem('coffeeHouseName') : '';
-      
-      if (userId) {
-        try {
-          await submitPastryFeedback({
-            userId,
-            userName: userName || 'Anonymous',
-            feedback: comment.trim()
-          });
-        } catch (err) {
-          console.error("Error submitting feedback:", err);
-          // Continue anyway for better user experience
-        }
+      try {
+        const userId = getStoredUserId();
+        // Get user name from localStorage, fallback to 'Anonymous' if not found
+        const userName = typeof window !== 'undefined' ? 
+          (localStorage.getItem('coffeeHouseName') || localStorage.getItem('userName') || 'Anonymous') : 
+          'Anonymous';
+        
+        console.log('Submitting feedback:', { userId, userName, feedback: comment.trim() });
+        
+        await submitPastryFeedback({
+          userId: userId || '00000000-0000-0000-0000-000000000000', // Provide fallback UUID if null
+          userName: userName,
+          feedback: comment.trim()
+        });
+        
+        console.log('Feedback submitted successfully');
+      } catch (err) {
+        console.error("Error submitting feedback:", err);
+        // Continue anyway for better user experience
       }
     }
     
