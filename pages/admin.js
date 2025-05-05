@@ -35,8 +35,13 @@ export default function Admin() {
   const [editingTag, setEditingTag] = useState(null);
   const [editTagFields, setEditTagFields] = useState({ name: '', description: '' });
   const [tagMsg, setTagMsg] = useState('');
+  const [passwordEntered, setPasswordEntered] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
 
   useEffect(() => {
+    if (!passwordEntered) return;
+    
     async function fetchData() {
       setLoading(true);
       const [coffeesData, usersData, tastingsData, reviewsData, tagsData] = await Promise.all([
@@ -54,7 +59,67 @@ export default function Admin() {
       setLoading(false);
     }
     fetchData();
-  }, []);
+  }, [passwordEntered]);
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (password === 'brewhaha') {
+      setPasswordEntered(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+    }
+  };
+
+  if (!passwordEntered) {
+    return (
+      <>
+        <Header />
+        <div style={{ minHeight: '100vh', background: '#fffbe7', padding: '2rem', paddingTop: '5rem', fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <h1 style={{ color: '#6b4f1d', marginBottom: 24 }}>Admin Access</h1>
+          <form onSubmit={handlePasswordSubmit} style={{ width: '100%', maxWidth: 400 }}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 8, color: '#6b4f1d', fontWeight: 'bold' }}>
+                Password:
+              </label>
+              <input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  padding: '0.8rem', 
+                  borderRadius: 8, 
+                  border: passwordError ? '2px solid #b91c1c' : '1px solid #e0cba8',
+                  fontSize: '1rem'
+                }}
+              />
+              {passwordError && (
+                <p style={{ color: '#b91c1c', marginTop: 4 }}>Incorrect password</p>
+              )}
+            </div>
+            <button 
+              type="submit" 
+              style={{
+                width: '100%', 
+                padding: '1rem', 
+                background: '#6b4f1d', 
+                color: '#fffbe7', 
+                border: 'none', 
+                borderRadius: 8, 
+                fontWeight: 'bold', 
+                fontSize: '1rem',
+                cursor: 'pointer',
+                marginTop: 8
+              }}
+            >
+              Login
+            </button>
+          </form>
+        </div>
+      </>
+    );
+  }
 
   const handleEditCoffee = (coffee) => {
     setEditingCoffee(coffee.id);
