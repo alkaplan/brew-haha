@@ -9,35 +9,14 @@ import { useRouter } from 'next/router';
 
 const ItemTypes = { COFFEE: 'COFFEE' };
 
-function DraggableCoffee({ coffee, index, moveCoffee }) {
-  const ref = useRef(null);
-  const [, drop] = useDrop({
-    accept: ItemTypes.COFFEE,
-    hover(item) {
-      if (item.index === index) return;
-      moveCoffee(item.index, index);
-      item.index = index;
-    },
-  });
-  const [{ isDragging }, drag] = useDrag({
-    type: ItemTypes.COFFEE,
-    item: { index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-  drag(drop(ref));
+function RankedCoffee({ coffee, index, moveCoffee, totalItems }) {
   return (
     <div
-      ref={ref}
       style={{
-        opacity: isDragging ? 0.5 : 1,
-        userSelect: 'none',
         padding: '16px 20px',
         margin: '0 0 12px 0',
         background: '#fff',
         borderRadius: 12,
-        cursor: 'move',
         fontWeight: 'bold',
         color: '#6b4f1d',
         display: 'flex',
@@ -67,16 +46,50 @@ function DraggableCoffee({ coffee, index, moveCoffee }) {
       </div>
       
       <div style={{ 
-        fontSize: 18, 
-        opacity: 0.6, 
-        marginLeft: 8,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center'
+        gap: 8
       }}>
-        <div style={{ fontSize: 16, transform: 'rotate(-90deg)', marginBottom: 2 }}>⇋</div>
-        <div style={{ fontSize: 14 }}>drag</div>
+        <button
+          onClick={() => moveCoffee(index, Math.max(0, index - 1))}
+          disabled={index === 0}
+          style={{
+            padding: '8px',
+            background: index === 0 ? '#f5f5f5' : '#6b4f1d',
+            color: index === 0 ? '#ccc' : '#fff',
+            border: 'none',
+            borderRadius: 8,
+            cursor: index === 0 ? 'not-allowed' : 'pointer',
+            fontSize: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 36,
+            height: 36
+          }}
+        >
+          ↑
+        </button>
+        <button
+          onClick={() => moveCoffee(index, Math.min(totalItems - 1, index + 1))}
+          disabled={index === totalItems - 1}
+          style={{
+            padding: '8px',
+            background: index === totalItems - 1 ? '#f5f5f5' : '#6b4f1d',
+            color: index === totalItems - 1 ? '#ccc' : '#fff',
+            border: 'none',
+            borderRadius: 8,
+            cursor: index === totalItems - 1 ? 'not-allowed' : 'pointer',
+            fontSize: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 36,
+            height: 36
+          }}
+        >
+          ↓
+        </button>
       </div>
     </div>
   );
@@ -197,7 +210,7 @@ export default function Review() {
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <>
       <Header />
       <div style={{...pageStyle, paddingTop: '5rem'}}>
         <div style={{ 
@@ -224,7 +237,7 @@ export default function Review() {
             border: '1px solid #e0cba8'
           }}>
             <p style={{ color: '#6b4f1d', margin: 0 }}>
-              <strong>Instructions:</strong> Drag and drop the coffees to rank them from your most favorite (#1) to least favorite.
+              <strong>Instructions:</strong> Use the up and down arrows to rank your coffees from most favorite (#1) to least favorite.
             </p>
           </div>
           
@@ -290,7 +303,13 @@ export default function Review() {
                   {ranked.map((id, idx) => {
                     const coffee = tastedCoffees.find(c => c.id === id);
                     return coffee ? (
-                      <DraggableCoffee key={id} coffee={coffee} index={idx} moveCoffee={moveCoffee} />
+                      <RankedCoffee 
+                        key={id} 
+                        coffee={coffee} 
+                        index={idx} 
+                        moveCoffee={moveCoffee}
+                        totalItems={ranked.length}
+                      />
                     ) : null;
                   })}
                   
@@ -300,7 +319,7 @@ export default function Review() {
                       textAlign: 'center', 
                       color: '#b91c1c' 
                     }}>
-                      Drag coffees here to rank them
+                      No coffees to rank yet
                     </div>
                   )}
                 </div>
@@ -359,7 +378,7 @@ export default function Review() {
           </form>
         </div>
       </div>
-    </DndProvider>
+    </>
   );
 }
 
