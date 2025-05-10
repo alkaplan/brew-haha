@@ -79,19 +79,26 @@ export default function Home() {
   };
   
   const handleMomModeSelection = async (isMom) => {
-    setMomModeSelected(true);
-    
-    if (isMom) {
-      toggleMomMode(true);
-      setShowCelebration(true);
+    try {
+      setMomModeSelected(true);
       
-      // Hide celebration after 2.5 seconds
-      setTimeout(() => {
-        finishSignup();
-      }, 2500);
-    } else {
-      toggleMomMode(false);
-      finishSignup();
+      if (isMom) {
+        toggleMomMode(true);
+        setShowCelebration(true);
+        
+        // Use a promise to handle the timeout more safely
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        setShowCelebration(false);
+        await finishSignup();
+      } else {
+        toggleMomMode(false);
+        await finishSignup();
+      }
+    } catch (error) {
+      console.error('Error in mom mode selection:', error);
+      setErrorMsg('Something went wrong. Please try again.');
+      setMomModeSelected(false);
+      setShowMomModal(false);
     }
   };
   
